@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>競程演算法視覺化</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --accent: #7c6af7;
+      --accent2: #56cfb2;
+      --text: #e8eaf6;
+      --text-muted: #8b90a8;
+      --border: #2e3250;
+      --tag-bg: #2a2d45;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1a1d27 0%, #12152a 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 2.5rem 2rem 2rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% -30%, rgba(124,106,247,0.18) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    header h1 {
+      font-size: 2.4rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+    header p {
+      margin-top: .6rem;
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+
+    /* ── Search ── */
+    .search-wrap {
+      display: flex;
+      justify-content: center;
+      padding: 1.8rem 2rem 0;
+    }
+    .search-wrap input {
+      width: 100%;
+      max-width: 520px;
+      padding: .75rem 1.2rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .search-wrap input:focus { border-color: var(--accent); }
+    .search-wrap input::placeholder { color: var(--text-muted); }
+
+    /* ── Main layout ── */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    /* ── Category section ── */
+    .category { margin-bottom: 2.8rem; }
+    .category-header {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: 1rem;
+    }
+    .category-header .icon {
+      width: 36px; height: 36px;
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .category-header h2 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .category-header .count {
+      margin-left: auto;
+      font-size: .8rem;
+      color: var(--text-muted);
+      background: var(--tag-bg);
+      padding: .2rem .6rem;
+      border-radius: 20px;
+    }
+
+    /* ── Algorithm cards ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: .9rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.1rem;
+      cursor: pointer;
+      transition: transform .15s, border-color .2s, box-shadow .2s;
+      position: relative;
+      overflow: hidden;
+      text-decoration: none;
+      display: block;
+    }
+    .card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity .2s;
+      pointer-events: none;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: var(--accent);
+      box-shadow: 0 6px 24px rgba(124,106,247,.18);
+    }
+    .card:hover::after { opacity: 1; }
+
+    .card-num {
+      font-size: .72rem;
+      color: var(--text-muted);
+      margin-bottom: .35rem;
+      font-family: monospace;
+    }
+    .card-title {
+      font-size: .95rem;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.35;
+    }
+    .card-tags {
+      margin-top: .6rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .3rem;
+    }
+    .tag {
+      font-size: .68rem;
+      padding: .15rem .5rem;
+      border-radius: 5px;
+      background: var(--tag-bg);
+      color: var(--text-muted);
+    }
+    .card-arrow {
+      position: absolute;
+      right: .9rem; top: 50%;
+      transform: translateY(-50%);
+      color: var(--border);
+      font-size: 1rem;
+      transition: color .2s, right .15s;
+    }
+    .card:hover .card-arrow { color: var(--accent); right: .7rem; }
+
+    /* ── Category colour themes ── */
+    .cat-ds   .icon { background: rgba(124,106,247,.15); color: #a594fa; }
+    .cat-graph .icon { background: rgba(86,207,178,.15); color: #56cfb2; }
+    .cat-tree  .icon { background: rgba(250,173,73,.15);  color: #faad49; }
+    .cat-dp    .icon { background: rgba(246,104,104,.15); color: #f66868; }
+    .cat-str   .icon { background: rgba(99,179,237,.15);  color: #63b3ed; }
+    .cat-math  .icon { background: rgba(154,230,180,.15); color: #9ae6b4; }
+    .cat-search .icon { background: rgba(246,173,85,.15); color: #f6ad55; }
+    .cat-misc  .icon { background: rgba(160,174,192,.15); color: #a0aec0; }
+
+    .cat-ds   .card:hover { border-color: #a594fa; box-shadow: 0 6px 24px rgba(165,148,250,.15); }
+    .cat-graph .card:hover { border-color: #56cfb2; box-shadow: 0 6px 24px rgba(86,207,178,.15); }
+    .cat-tree  .card:hover { border-color: #faad49; box-shadow: 0 6px 24px rgba(250,173,73,.15); }
+    .cat-dp    .card:hover { border-color: #f66868; box-shadow: 0 6px 24px rgba(246,104,104,.15); }
+    .cat-str   .card:hover { border-color: #63b3ed; box-shadow: 0 6px 24px rgba(99,179,237,.15); }
+    .cat-math  .card:hover { border-color: #9ae6b4; box-shadow: 0 6px 24px rgba(154,230,180,.15); }
+    .cat-search .card:hover { border-color: #f6ad55; box-shadow: 0 6px 24px rgba(246,173,85,.15); }
+
+    /* ── Coming soon badge ── */
+    .card.soon { opacity: .55; cursor: not-allowed; pointer-events: none; }
+    .badge-soon {
+      font-size: .62rem; padding: .1rem .45rem;
+      border-radius: 4px;
+      background: var(--tag-bg); color: var(--text-muted);
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      color: var(--text-muted);
+      font-size: .82rem;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Hidden by search ── */
+    .card.hidden { display: none; }
+    .category.hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🧩 競程演算法視覺化</h1>
+  <p>互動式步驟演示 · 自訂輸入 · 動畫控制 · 37 個模板</p>
+</header>
+
+<div class="search-wrap">
+  <input type="text" id="search" placeholder="🔍 搜尋演算法…" autocomplete="off" />
+</div>
+
+<main id="main-content">
+
+  <!-- ① 資料結構 -->
+  <section class="category cat-ds" data-cat="資料結構">
+    <div class="category-header">
+      <div class="icon">🗂</div>
+      <h2>資料結構</h2>
+      <span class="count">9 個</span>
+    </div>
+    <div class="cards">
+      <a class="card" href="algo/bit.html" data-title="BIT 二元索引樹">
+        <div class="card-num">#07</div>
+        <div class="card-title">BIT 二元索引樹</div>
+        <div class="card-tags"><span class="tag">點修改</span><span class="tag">前綴和查詢</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/bit2d.html" data-title="二維 BIT">
+        <div class="card-num">#08</div>
+        <div class="card-title">二維 BIT</div>
+        <div class="card-tags"><span class="tag">2D 前綴和</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/bit_range.html" data-title="區間修改 BIT">
+        <div class="card-num">#09</div>
+        <div class="card-title">區間修改 + 查詢 BIT</div>
+        <div class="card-tags"><span class="tag">差分</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/segtree.html" data-title="線段樹">
+        <div class="card-num">#13</div>
+        <div class="card-title">線段樹</div>
+        <div class="card-tags"><span class="tag">區間修改</span><span class="tag">懶標記</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/segtree_dynamic.html" data-title="動態開點線段樹">
+        <div class="card-num">#33</div>
+        <div class="card-title">動態開點線段樹</div>
+        <div class="card-tags"><span class="tag">懶標記</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/segtree_bsearch.html" data-title="線段樹上二分搜">
+        <div class="card-num">#31</div>
+        <div class="card-title">線段樹上二分搜</div>
+        <div class="card-tags"><span class="tag">二分搜</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/sparse_table.html" data-title="稀疏表">
+        <div class="card-num">#35</div>
+        <div class="card-title">稀疏表 Sparse Table</div>
+        <div class="card-tags"><span class="tag">RMQ</span><span class="tag">O(1) 查詢</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/dsu.html" data-title="並查集">
+        <div class="card-num">#21</div>
+        <div class="card-title">並查集 DSU</div>
+        <div class="card-tags"><span class="tag">路徑壓縮</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/dsu_block.html" data-title="並查集 連通塊">
+        <div class="card-num">#22</div>
+        <div class="card-title">並查集（連通塊）</div>
+        <div class="card-tags"><span class="tag">連通塊大小</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ② 圖論 -->
+  <section class="category cat-graph" data-cat="圖論">
+    <div class="category-header">
+      <div class="icon">🕸</div>
+      <h2>圖論</h2>
+      <span class="count">6 個</span>
+    </div>
+    <div class="cards">
+      <a class="card" href="algo/dijkstra.html" data-title="Dijkstra">
+        <div class="card-num">#24</div>
+        <div class="card-title">Dijkstra</div>
+        <div class="card-tags"><span class="tag">最短路</span><span class="tag">非負權</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/bellman_ford.html" data-title="Bellman Ford">
+        <div class="card-num">#25</div>
+        <div class="card-title">Bellman-Ford</div>
+        <div class="card-tags"><span class="tag">負權邊</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/floyd.html" data-title="Floyd Warshall">
+        <div class="card-num">#26</div>
+        <div class="card-title">Floyd-Warshall</div>
+        <div class="card-tags"><span class="tag">全點對</span><span class="tag">DP</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/spfa.html" data-title="SPFA 負權環">
+        <div class="card-num">#34</div>
+        <div class="card-title">SPFA</div>
+        <div class="card-tags"><span class="tag">負權環偵測</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/topo_sort.html" data-title="拓樸排序">
+        <div class="card-num">#18</div>
+        <div class="card-title">拓樸排序</div>
+        <div class="card-tags"><span class="tag">DAG</span><span class="tag">BFS</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/mst.html" data-title="最小生成樹 MST">
+        <div class="card-num">#23</div>
+        <div class="card-title">最小生成樹 MST</div>
+        <div class="card-tags"><span class="tag">Kruskal</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ③ 樹 -->
+  <section class="category cat-tree" data-cat="樹">
+    <div class="category-header">
+      <div class="icon">🌲</div>
+      <h2>樹</h2>
+      <span class="count">3 個</span>
+    </div>
+    <div class="cards">
+      <a class="card" href="algo/tree_diameter.html" data-title="樹直徑">
+        <div class="card-num">#19</div>
+        <div class="card-title">樹直徑</div>
+        <div class="card-tags"><span class="tag">DFS</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/tree_centroid.html" data-title="樹重心">
+        <div class="card-num">#20</div>
+        <div class="card-title">樹重心</div>
+        <div class="card-tags"><span class="tag">DFS</span><span class="tag">子樹大小</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/binary_tree.html" data-title="二元樹建構">
+        <div class="card-num">#30</div>
+        <div class="card-title">二元樹建構</div>
+        <div class="card-tags"><span class="tag">preorder</span><span class="tag">inorder</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ④ 動態規劃 -->
+  <section class="category cat-dp" data-cat="動態規劃">
+    <div class="category-header">
+      <div class="icon">📐</div>
+      <h2>動態規劃 DP</h2>
+      <span class="count">6 個</span>
+    </div>
+    <div class="cards">
+      <a class="card" href="algo/knapsack_01.html" data-title="01背包">
+        <div class="card-num">#14</div>
+        <div class="card-title">01 背包</div>
+        <div class="card-tags"><span class="tag">O(nW)</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/knapsack_inf.html" data-title="無限背包">
+        <div class="card-num">#15</div>
+        <div class="card-title">無限背包</div>
+        <div class="card-tags"><span class="tag">O(nW)</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/lis.html" data-title="LIS 最長遞增子序列">
+        <div class="card-num">#16</div>
+        <div class="card-title">LIS 最長遞增子序列</div>
+        <div class="card-tags"><span class="tag">O(n log n)</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/lis_dp.html" data-title="LIS 回溯實際序列">
+        <div class="card-num">#17</div>
+        <div class="card-title">LIS（回溯實際序列）</div>
+        <div class="card-tags"><span class="tag">DP</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/edit_distance.html" data-title="字串編輯距離">
+        <div class="card-num">#28</div>
+        <div class="card-title">字串編輯距離</div>
+        <div class="card-tags"><span class="tag">Levenshtein</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/lcs.html" data-title="LCS 最長公共子序列">
+        <div class="card-num">#29</div>
+        <div class="card-title">LCS 最長公共子序列</div>
+        <div class="card-tags"><span class="tag">O(mn)</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ⑤ 字串 -->
+  <section class="category cat-str" data-cat="字串">
+    <div class="category-header">
+      <div class="icon">🔤</div>
+      <h2>字串</h2>
+      <span class="count">3 個</span>
+    </div>
+    <div class="cards">
+      <a class="card" href="algo/kmp.html" data-title="KMP">
+        <div class="card-num">#32</div>
+        <div class="card-title">KMP 演算法</div>
+        <div class="card-tags"><span class="tag">模式匹配</span><span class="tag">O(n+m)</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/z_function.html" data-title="Z-Function">
+        <div class="card-num">#36</div>
+        <div class="card-title">Z-Function</div>
+        <div class="card-tags"><span class="tag">字串匹配</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/trie.html" data-title="Trie">
+        <div class="card-num">#37</div>
+        <div class="card-title">Trie 字典樹</div>
+        <div class="card-tags"><span class="tag">前綴</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ⑥ 數論 / 數學 -->
+  <section class="category cat-math" data-cat="數論數學">
+    <div class="category-header">
+      <div class="icon">🔢</div>
+      <h2>數論 / 數學</h2>
+      <span class="count">5 個</span>
+    </div>
+    <div class="cards">
+      <a class="card" href="algo/linear_sieve.html" data-title="線性篩質數">
+        <div class="card-num">#04</div>
+        <div class="card-title">線性篩質數</div>
+        <div class="card-tags"><span class="tag">O(n)</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/linear_sieve_lpf.html" data-title="線性篩 + 質因數分解">
+        <div class="card-num">#05</div>
+        <div class="card-title">線性篩 + 質因數分解</div>
+        <div class="card-tags"><span class="tag">O(log x)</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/exgcd.html" data-title="拓展歐幾里德">
+        <div class="card-num">#06</div>
+        <div class="card-title">拓展歐幾里德</div>
+        <div class="card-tags"><span class="tag">ax+by=gcd</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/qpow.html" data-title="快速冪">
+        <div class="card-num">#12</div>
+        <div class="card-title">快速冪</div>
+        <div class="card-tags"><span class="tag">O(log n)</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/matrix.html" data-title="矩陣計算">
+        <div class="card-num">#03</div>
+        <div class="card-title">矩陣計算</div>
+        <div class="card-tags"><span class="tag">乘法</span><span class="tag">逆矩陣</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ⑦ 搜尋 -->
+  <section class="category cat-search" data-cat="搜尋">
+    <div class="category-header">
+      <div class="icon">🔍</div>
+      <h2>搜尋技巧</h2>
+      <span class="count">3 個</span>
+    </div>
+    <div class="cards">
+      <a class="card" href="algo/binary_search.html" data-title="二分搜">
+        <div class="card-num">#02</div>
+        <div class="card-title">二分搜</div>
+        <div class="card-tags"><span class="tag">find_min_false</span><span class="tag">find_max_true</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/monotonic_queue.html" data-title="單調隊列">
+        <div class="card-num">#27</div>
+        <div class="card-title">單調隊列</div>
+        <div class="card-tags"><span class="tag">滑動視窗</span><span class="tag">最大最小</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card" href="algo/discretize.html" data-title="離散化">
+        <div class="card-num">#01</div>
+        <div class="card-title">離散化</div>
+        <div class="card-tags"><span class="tag">座標壓縮</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ⑧ 雜項 -->
+  <section class="category cat-misc" data-cat="雜項">
+    <div class="category-header">
+      <div class="icon">🛠</div>
+      <h2>雜項工具</h2>
+      <span class="count">2 個</span>
+    </div>
+    <div class="cards">
+      <a class="card" href="algo/custom_hash.html" data-title="自訂隨機哈希">
+        <div class="card-num">#11</div>
+        <div class="card-title">自訂隨機哈希</div>
+        <div class="card-tags"><span class="tag">防卡常</span><span class="tag">splitmix64</span></div>
+        <span class="card-arrow">›</span>
+      </a>
+      <a class="card soon" data-title="常用函式">
+        <div class="card-num">#10</div>
+        <div class="card-title">常用函式 <span class="badge-soon">soon</span></div>
+        <div class="card-tags"><span class="tag">pb_ds</span><span class="tag">stringstream</span></div>
+      </a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  37 個競程模板視覺化 · 使用方向鍵或滑鼠操作每步演示
+</footer>
+
+<script>
+  const input = document.getElementById('search');
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    document.querySelectorAll('.category').forEach(sec => {
+      let anyVisible = false;
+      sec.querySelectorAll('.card').forEach(card => {
+        const title = (card.dataset.title || card.querySelector('.card-title').textContent).toLowerCase();
+        const tags  = card.querySelector('.card-tags')?.textContent.toLowerCase() ?? '';
+        const num   = card.querySelector('.card-num')?.textContent.toLowerCase() ?? '';
+        const cat   = sec.dataset.cat?.toLowerCase() ?? '';
+        const match = !q || title.includes(q) || tags.includes(q) || num.includes(q) || cat.includes(q);
+        card.classList.toggle('hidden', !match);
+        if (match) anyVisible = true;
+      });
+      sec.classList.toggle('hidden', !anyVisible);
+    });
+  });
+</script>
+
+</body>
+</html>
