@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -6,7 +6,7 @@
 <style>
 :root{--bg:#0f1117;--sf:#1a1d27;--sf2:#22263a;--ac:#7c6af7;--ac2:#56cfb2;--tx:#e8eaf6;--mu:#8b90a8;--bd:#2e3250;--gr:#56cfb2;--rd:#f66868;--yl:#faad49;--bl:#63b3ed;}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;font-size:14px;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);height:100vh;overflow:hidden;display:flex;flex-direction:column;font-size:14px;}
 .tb{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;background:var(--sf);border-bottom:1px solid var(--bd);}
 .tb-back{color:var(--mu);text-decoration:none;font-size:.85rem;padding:.3rem .6rem;border-radius:6px;border:1px solid var(--bd);}
 .tb-back:hover{color:var(--tx);border-color:var(--ac);}
@@ -50,6 +50,27 @@ input[type=range]{width:70px;accent-color:var(--ac);}
 .info-row{display:flex;gap:1.5rem;background:var(--sf2);border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.85rem;font-family:monospace;}
 .info-item b{color:var(--yl);}
 .code-note{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:.75rem;font-size:.8rem;font-family:monospace;color:#cdd6f4;white-space:pre;}
+.algo-panel{width:280px;flex-shrink:0;border-left:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;}
+.algo-desc{font-size:.8rem;color:var(--mu);line-height:1.7;}
+.algo-desc b{color:var(--tx);}
+.tag-list{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.55rem;}
+.tag{background:var(--sf2);border:1px solid var(--bd);border-radius:4px;padding:.15rem .5rem;font-size:.7rem;color:var(--mu);}
+.pseudo-block{background:var(--sf2);border-radius:8px;padding:.5rem .4rem;font-family:monospace;font-size:.78rem;line-height:1.6;}
+.ps-line{padding:.2rem .5rem;border-radius:4px;color:var(--mu);transition:background .18s,color .18s,border-color .18s;cursor:default;white-space:nowrap;border-left:2px solid transparent;}
+.ps-indent{padding-left:1.6rem;}
+.ps-indent2{padding-left:3.2rem;}
+.ps-line.active{background:rgba(124,106,247,.22);color:var(--tx);border-left-color:var(--ac);font-weight:600;}
+.ps-line.dim{opacity:.28;}
+.ps-kw{color:#ff79c6;}
+.ps-cm{color:#6272a4;font-size:.72rem;}
+.complexity-row{display:flex;gap:1.5rem;font-size:.82rem;}
+.complexity-row b{color:var(--ac2);}
+.mode-badge{background:rgba(124,106,247,.18);color:var(--ac);border:1px solid rgba(124,106,247,.4);border-radius:4px;padding:.1rem .4rem;font-size:.65rem;font-weight:600;vertical-align:middle;margin-left:.35rem;letter-spacing:.02em;}
+.ps-legend{display:flex;gap:1rem;margin-top:.55rem;font-size:.72rem;color:var(--mu);}
+.ps-leg-item{display:flex;align-items:center;gap:.3rem;}
+.ps-leg-dot{width:8px;height:8px;border-radius:2px;}
+.ps-leg-dot.cur{background:var(--ac);}
+.ps-leg-dot.ot{background:var(--bd);}
 </style>
 </head>
 <body>
@@ -71,6 +92,7 @@ input[type=range]{width:70px;accent-color:var(--ac);}
           <option value="maxtrue">find_max_true（符合的最大值，check: x &lt; target）</option>
         </select>
       </div>
+      <button class="btn" id="rand-btn" style="width:100%;margin-bottom:.3rem;">&#127922; 隨機生成</button>
       <button class="btn btn-run" id="run-btn">▶ 執行</button>
     </div>
     <div class="pnl" style="flex:1">
@@ -92,6 +114,45 @@ input[type=range]{width:70px;accent-color:var(--ac);}
       <input type="range" id="speed" min="1" max="10" value="5">
     </div>
   </div>
+  <div class="algo-panel">
+    <div class="pnl">
+      <div class="pnl-title">演算法原理</div>
+      <div class="algo-desc">在<b>有序序列</b>上定義判斷函式 check(x)，使序列具有「前半全 True、後半全 False」的單調性。每次取中點，根據 check 結果將搜尋範圍<b>減半</b>，直到 L = R 收斂至邊界位置。</div>
+      <div class="tag-list"><span class="tag">有序序列</span><span class="tag">O(log n)</span><span class="tag">邊界搜尋</span><span class="tag">二分法</span></div>
+    </div>
+    <div class="pnl">
+      <div class="pnl-title">虛擬碼 <span id="mode-badge" class="mode-badge">find_min_false</span></div>
+      <div id="pseudo-minfalse" class="pseudo-block">
+        <div class="ps-line" id="ps0"><span class="ps-kw">L</span> = 0,  <span class="ps-kw">R</span> = n-1</div>
+        <div class="ps-line" id="ps1"><span class="ps-kw">while</span> L &lt; R:</div>
+        <div class="ps-line ps-indent" id="ps2">mid = L + (R-L) / 2</div>
+        <div class="ps-line ps-indent" id="ps3"><span class="ps-kw">if</span> check(mid):  <span class="ps-cm">// arr[mid] &lt; target</span></div>
+        <div class="ps-line ps-indent2" id="ps4">L = mid + 1  <span class="ps-cm">// 向右縮</span></div>
+        <div class="ps-line ps-indent" id="ps5"><span class="ps-kw">else</span>:</div>
+        <div class="ps-line ps-indent2" id="ps6">R = mid  <span class="ps-cm">// 向左縮</span></div>
+        <div class="ps-line" id="ps7"><span class="ps-kw">return</span> L  <span class="ps-cm">// 第一個 False 的位置</span></div>
+      </div>
+      <div id="pseudo-maxtrue" class="pseudo-block" style="display:none">
+        <div class="ps-line" id="qt0"><span class="ps-kw">L</span> = 0,  <span class="ps-kw">R</span> = n-1</div>
+        <div class="ps-line" id="qt1"><span class="ps-kw">while</span> L &lt; R:</div>
+        <div class="ps-line ps-indent" id="qt2">mid = L + (R-L+1) / 2  <span class="ps-cm">// 防死循環</span></div>
+        <div class="ps-line ps-indent" id="qt3"><span class="ps-kw">if</span> check(mid):  <span class="ps-cm">// arr[mid] &lt; target</span></div>
+        <div class="ps-line ps-indent2" id="qt4">L = mid  <span class="ps-cm">// 向右縮</span></div>
+        <div class="ps-line ps-indent" id="qt5"><span class="ps-kw">else</span>:</div>
+        <div class="ps-line ps-indent2" id="qt6">R = mid - 1  <span class="ps-cm">// 向左縮</span></div>
+        <div class="ps-line" id="qt7"><span class="ps-kw">return</span> L  <span class="ps-cm">// 最後一個 True 的位置</span></div>
+      </div>
+      <div class="ps-legend"><div class="ps-leg-item"><span class="ps-leg-dot cur"></span>當前執行行</div><div class="ps-leg-item"><span class="ps-leg-dot ot"></span>其他步驟</div></div>
+    </div>
+    <div class="pnl">
+      <div class="pnl-title">複雜度</div>
+      <div class="complexity-row"><span>時間 <b>O(log n)</b></span><span>空間 <b>O(1)</b></span></div>
+    </div>
+    <div class="pnl" style="flex:1">
+      <div class="pnl-title">使用時機</div>
+      <div class="algo-desc">• 有序陣列搜尋元素<br>• 最佳化問題「二分答案」<br>• 單調函式求根（離散/連續）<br>• lower_bound / upper_bound</div>
+    </div>
+  </div>
 </div>
 <script>
 const steps=[];let cur=-1,autoTimer=null;
@@ -107,7 +168,7 @@ function goTo(i){
   if(i<0||i>=steps.length)return;
   cur=i;
   document.getElementById('step-info').innerHTML=steps[cur].desc;
-  render(steps[cur]);updateCtrl();
+  render(steps[cur]);highlightPhase(steps[cur].phase||'');updateCtrl();
 }
 document.getElementById('btn-first').onclick=()=>goTo(0);
 document.getElementById('btn-prev').onclick=()=>goTo(cur-1);
@@ -130,7 +191,7 @@ document.getElementById('btn-reset').onclick=()=>{
   steps.length=0;cur=-1;
   document.getElementById('viz').innerHTML='';
   document.getElementById('step-info').textContent='請按「執行」開始';
-  updateCtrl();
+  highlightPhase('');updateCtrl();
 };
 
 function render(s){
@@ -164,7 +225,7 @@ document.getElementById('run-btn').onclick=function(){
   if(arr.some(isNaN)||isNaN(target)){alert('輸入有誤');return;}
 
   let L=0,R=arr.length-1;
-  steps.push({desc:`<b>初始化</b><br>L=${L}, R=${R}<br>目標: ${target}<br>模式: ${mode==='minfalse'?'find_min_false（不符合條件的最小位置）':'find_max_true（符合條件的最大位置）'}<br>check(x): arr[x] ${mode==='minfalse'?'>= target':'< target'}`,arr:[...arr],L,R});
+  steps.push({desc:`<b>初始化</b><br>L=${L}, R=${R}<br>目標: ${target}<br>模式: ${mode==='minfalse'?'find_min_false（不符合條件的最小位置）':'find_max_true（符合條件的最大位置）'}<br>check(x): arr[x] ${mode==='minfalse'?'>= target':'< target'}`,arr:[...arr],L,R,phase:'init'});
 
   if(mode==='minfalse'){
     // find_min_false: L + (R-L)/2, check ? L=mid+1 : R=mid
@@ -172,23 +233,53 @@ document.getElementById('run-btn').onclick=function(){
     while(lv<rv){
       const mid=lv+Math.floor((rv-lv)/2);
       const chk=arr[mid]<target; // check = true means condition holds
-      steps.push({desc:`<b>迭代</b><br>L=${lv}, R=${rv}<br>mid = L+(R-L)/2 = <b>${mid}</b><br>arr[mid]=${arr[mid]}, target=${target}<br>check(mid)=${chk} → ${chk?`L = mid+1 = ${mid+1}`:`R = mid = ${mid}` }`,arr:[...arr],L:lv,R:rv,M:mid});
+      steps.push({desc:`<b>迭代</b><br>L=${lv}, R=${rv}<br>mid = L+(R-L)/2 = <b>${mid}</b><br>arr[mid]=${arr[mid]}, target=${target}<br>check(mid)=${chk} → ${chk?`L = mid+1 = ${mid+1}`:`R = mid = ${mid}` }`,arr:[...arr],L:lv,R:rv,M:mid,phase:chk?'iter_true':'iter_false'});
       if(chk)lv=mid+1;else rv=mid;
     }
-    steps.push({desc:`<b>完成！</b><br>L = R = ${lv}<br>arr[${lv}] = ${arr[lv]}，是第一個不符合條件（>= ${target}）的位置。`,arr:[...arr],L:lv,R:rv,ansIdx:lv});
+    steps.push({desc:`<b>完成！</b><br>L = R = ${lv}<br>arr[${lv}] = ${arr[lv]}，是第一個不符合條件（>= ${target}）的位置。`,arr:[...arr],L:lv,R:rv,ansIdx:lv,phase:'done'});
   } else {
     // find_max_true: L+(R-L+1)/2, check ? L=mid : R=mid-1
     let lv=L,rv=R;
     while(lv<rv){
       const mid=lv+Math.floor((rv-lv+1)/2);
       const chk=arr[mid]<target;
-      steps.push({desc:`<b>迭代</b><br>L=${lv}, R=${rv}<br>mid = L+(R-L+1)/2 = <b>${mid}</b><br>arr[mid]=${arr[mid]}, target=${target}<br>check(mid)=${chk} → ${chk?`L = mid = ${mid}`:`R = mid-1 = ${mid-1}`}`,arr:[...arr],L:lv,R:rv,M:mid});
+      steps.push({desc:`<b>迭代</b><br>L=${lv}, R=${rv}<br>mid = L+(R-L+1)/2 = <b>${mid}</b><br>arr[mid]=${arr[mid]}, target=${target}<br>check(mid)=${chk} → ${chk?`L = mid = ${mid}`:`R = mid-1 = ${mid-1}`}`,arr:[...arr],L:lv,R:rv,M:mid,phase:chk?'iter_true':'iter_false'});
       if(chk)lv=mid;else rv=mid-1;
     }
-    steps.push({desc:`<b>完成！</b><br>L = R = ${lv}<br>arr[${lv}] = ${arr[lv]}，是最後一個符合條件（< ${target}）的位置。`,arr:[...arr],L:lv,R:rv,ansIdx:lv});
+    steps.push({desc:`<b>完成！</b><br>L = R = ${lv}<br>arr[${lv}] = ${arr[lv]}，是最後一個符合條件（< ${target}）的位置。`,arr:[...arr],L:lv,R:rv,ansIdx:lv,phase:'done'});
   }
   goTo(0);
 };
 updateCtrl();
-</script>
+const _psMap={
+  minfalse:{init:['ps0'],iter_true:['ps1','ps2','ps3','ps4'],iter_false:['ps1','ps2','ps3','ps5','ps6'],done:['ps7']},
+  maxtrue:{init:['qt0'],iter_true:['qt1','qt2','qt3','qt4'],iter_false:['qt1','qt2','qt3','qt5','qt6'],done:['qt7']}
+};
+function highlightPhase(phase){
+  const mode=document.getElementById('mode').value;
+  const pfx=mode==='minfalse'?'ps':'qt';
+  const allIds=[0,1,2,3,4,5,6,7].map(i=>pfx+i);
+  const active=((_psMap[mode]||_psMap.minfalse)[phase])||[];
+  allIds.forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    el.classList.remove('active','dim');
+    if(active.length){active.includes(id)?el.classList.add('active'):el.classList.add('dim');}
+  });
+}
+document.getElementById('mode').onchange=function(){
+  const mf=this.value==='minfalse';
+  document.getElementById('pseudo-minfalse').style.display=mf?'':'none';
+  document.getElementById('pseudo-maxtrue').style.display=mf?'none':'';
+  document.getElementById('mode-badge').textContent=mf?'find_min_false':'find_max_true';
+  highlightPhase('');
+};
+function randFill(){
+  const n=6+Math.floor(Math.random()*7);
+  const s=new Set();
+  while(s.size<n)s.add(1+Math.floor(Math.random()*50));
+  const arr=[...s].sort((a,b)=>a-b);
+  document.getElementById('arr-in').value=arr.join(' ');
+  document.getElementById('target').value=1+Math.floor(Math.random()*50);
+}
+document.getElementById('rand-btn').onclick=randFill;</script>
 </body></html>

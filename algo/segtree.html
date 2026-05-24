@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -6,7 +6,7 @@
 <style>
 :root{--bg:#0f1117;--sf:#1a1d27;--sf2:#22263a;--ac:#7c6af7;--ac2:#56cfb2;--tx:#e8eaf6;--mu:#8b90a8;--bd:#2e3250;--gr:#56cfb2;--rd:#f66868;--yl:#faad49;--bl:#63b3ed;}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;font-size:14px;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);height:100vh;overflow:hidden;display:flex;flex-direction:column;font-size:14px;}
 .tb{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;background:var(--sf);border-bottom:1px solid var(--bd);}
 .tb-back{color:var(--mu);text-decoration:none;font-size:.85rem;padding:.3rem .6rem;border-radius:6px;border:1px solid var(--bd);}
 .tb-back:hover{color:var(--tx);border-color:var(--ac);}
@@ -38,6 +38,24 @@ svg.st-svg{background:var(--sf2);border-radius:10px;border:1px solid var(--bd);d
 .result-box{background:rgba(86,207,178,.1);border:1px solid var(--gr);border-radius:8px;padding:.65rem 1rem;font-size:.9rem;margin-top:.8rem;}
 .sec{font-size:.78rem;color:var(--mu);font-weight:600;margin:.5rem 0 .4rem;display:flex;align-items:center;gap:.5rem;}
 .sec::after{content:'';flex:1;height:1px;background:var(--bd);}
+
+.algo-panel{width:280px;flex-shrink:0;border-left:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;}
+.algo-desc{font-size:.83rem;line-height:1.7;color:var(--tx);opacity:.9;}
+.tag-list{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem;}
+.tag{font-size:.7rem;padding:.18rem .52rem;border-radius:99px;background:rgba(124,106,247,.18);color:var(--ac);border:1px solid rgba(124,106,247,.35);}
+.pseudo-block{background:var(--sf2);border-radius:8px;padding:.6rem .75rem;font-family:'Cascadia Code','Fira Code',monospace;font-size:.78rem;line-height:1.75;border:1px solid var(--bd);}
+.ps-line{padding:.05rem .4rem;border-radius:4px;transition:all .18s;border-left:2px solid transparent;cursor:default;}
+.ps-indent{padding-left:1.4em;}
+.ps-indent2{padding-left:2.8em;}
+.ps-line.active{background:rgba(124,106,247,.22);color:var(--tx);border-left-color:var(--ac);font-weight:600;}
+.ps-line.dim{opacity:.28;}
+.ps-kw{color:#ff79c6;}
+.ps-cm{color:#6272a4;font-size:.72rem;}
+.complexity-row{display:flex;justify-content:space-between;font-size:.82rem;gap:.5rem;}
+.complexity-row span{background:var(--sf2);border-radius:6px;padding:.35rem .6rem;flex:1;text-align:center;border:1px solid var(--bd);}
+.complexity-row b{color:var(--ac2);}
+.ps-legend{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:.5rem;font-size:.7rem;color:var(--mu);}
+.ps-legend span::before{content:'■ ';color:var(--ac);}
 </style>
 </head>
 <body>
@@ -58,6 +76,7 @@ query 1 8
 update 1 3 2
 query 3 7</textarea></div>
       <div style="font-size:.73rem;color:var(--mu)">query l r（區間求和）<br>update l r v（區間加上 v）</div>
+      <button class="btn" id="rand-btn" style="width:100%;margin-bottom:.3rem;">&#127922; 隨機生成</button>
       <button class="btn btn-run" id="run-btn">▶ 執行</button>
     </div>
     <div class="pnl" style="flex:1">
@@ -79,6 +98,37 @@ query 3 7</textarea></div>
       <input type="range" id="speed" min="1" max="10" value="5">
     </div>
   </div>
+<div class="algo-panel">
+  <div class="pnl">
+    <div class="pnl-title">演算法原理</div>
+    <div class="algo-desc">分治結構，每個節點維護區間聚合值。Lazy 標記延遲下傳，支援 O(log n) 區間修改與查詢。</div>
+    <div class="tag-list"><span class="tag">區間查詢</span><span class="tag">區間修改</span><span class="tag">Lazy Propagation</span></div>
+  </div>
+  <div class="pnl">
+    <div class="pnl-title">虛擬碼</div>
+    <div class="pseudo-block" id="pseudo-main">
+        <div class="ps-line" id="l0"><span class='ps-kw'>build</span>(node, l, r):</div>
+        <div class="ps-line ps-indent" id="l1"><span class='ps-kw'>if</span> l==r: tree[node]=arr[l]; return</div>
+        <div class="ps-line ps-indent" id="l2">build(2n,l,mid); build(2n+1,mid+1,r)</div>
+        <div class="ps-line ps-indent" id="l3">tree[node] = tree[2n]+tree[2n+1]</div>
+        <div class="ps-line" id="l4"><span class='ps-kw'>update</span>(l,r,v): 區間加法 + lazy</div>
+        <div class="ps-line ps-indent" id="l5">若節點完全覆蓋: lazy+=v; tree+=v*(r-l+1)</div>
+        <div class="ps-line ps-indent" id="l6">否則: push_down; 遞迴; push_up</div>
+        <div class="ps-line" id="l7"><span class='ps-kw'>query</span>(l,r): 區間查詢</div>
+        <div class="ps-line ps-indent" id="l8">若節點完全覆蓋: return tree[node]</div>
+        <div class="ps-line ps-indent" id="l9">否則: push_down; 合併左右子樹</div>
+    </div>
+      <div class="ps-legend"><span>當前執行行</span></div>
+  </div>
+  <div class="pnl">
+    <div class="pnl-title">複雜度</div>
+    <div class="complexity-row"><span>時間 <b>O(log n)</b></span><span>空間 <b>O(n)</b></span></div>
+  </div>
+  <div class="pnl" style="flex:1">
+    <div class="pnl-title">使用時機</div>
+    <div class="algo-desc">• 區間和/最大/最小查詢<br>• 區間賦值/加法<br>• 動態DP<br></div>
+  </div>
+</div>
 </div>
 <script>
 const steps=[];let cur=-1,autoTimer=null;
@@ -93,7 +143,7 @@ function updateCtrl(){
 function goTo(i){
   if(i<0||i>=steps.length)return;
   cur=i;document.getElementById('step-info').innerHTML=steps[cur].desc;
-  render(steps[cur]);updateCtrl();
+  render(steps[cur]);highlightPhase(steps[cur].phase||'');updateCtrl();
 }
 document.getElementById('btn-first').onclick=()=>goTo(0);
 document.getElementById('btn-prev').onclick=()=>goTo(cur-1);
@@ -108,7 +158,7 @@ document.getElementById('btn-reset').onclick=()=>{
   if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
   document.getElementById('btn-play').textContent='▶ 自動';
   steps.length=0;cur=-1;document.getElementById('viz').innerHTML='';
-  document.getElementById('step-info').textContent='請按「執行」開始';updateCtrl();
+  document.getElementById('step-info').textContent='請按「執行」開始';highlightPhase('');updateCtrl();
 };
 
 class SegTree{
@@ -231,5 +281,32 @@ document.getElementById('run-btn').onclick=function(){
   goTo(0);
 };
 updateCtrl();
+function randFill(){
+  const n=5+Math.floor(Math.random()*4);
+  const arr=Array.from({length:n},()=>1+Math.floor(Math.random()*15));
+  document.getElementById('arr-in').value=arr.join(' ');
+  const ops=[];
+  for(let i=0;i<5;i++){
+    const l=1+Math.floor(Math.random()*n),r=l+Math.floor(Math.random()*(n-l+1));
+    if(Math.random()<0.5)ops.push('query '+l+' '+r);
+    else ops.push('update '+l+' '+r+' '+(1+Math.floor(Math.random()*10)));
+  }
+  document.getElementById('ops-in').value=ops.join('\n');
+}
+document.getElementById('rand-btn').onclick=randFill;
+function highlightPhase(ph){
+  let phase=ph;
+  if(!phase&&steps.length>0){
+    if(cur===0)phase='init';
+    else if(cur===steps.length-1)phase='done';
+    else phase='process';
+  }
+  const MAP={init:['l0','l1','l2','l3'],process:['l4','l5','l6','l7','l8','l9'],done:['l8','l9']};
+  const allIds=Object.values(MAP).flat();
+  allIds.forEach(id=>{const el=document.getElementById(id);if(el){el.classList.remove('active','dim');}});
+  if(!phase||!MAP[phase])return;
+  const active=MAP[phase];
+  allIds.forEach(id=>{const el=document.getElementById(id);if(el){if(active.includes(id))el.classList.add('active');else el.classList.add('dim');}});
+}
 </script>
 </body></html>

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -6,7 +6,7 @@
 <style>
 :root{--bg:#0f1117;--sf:#1a1d27;--sf2:#22263a;--ac:#7c6af7;--ac2:#56cfb2;--tx:#e8eaf6;--mu:#8b90a8;--bd:#2e3250;--gr:#56cfb2;--rd:#f66868;--yl:#faad49;--bl:#63b3ed;}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;font-size:14px;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);height:100vh;overflow:hidden;display:flex;flex-direction:column;font-size:14px;}
 .tb{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;background:var(--sf);border-bottom:1px solid var(--bd);}
 .tb-back{color:var(--mu);text-decoration:none;font-size:.85rem;padding:.3rem .6rem;border-radius:6px;border:1px solid var(--bd);}
 .tb-back:hover{color:var(--tx);border-color:var(--ac);}
@@ -47,6 +47,24 @@ input[type=range]{width:70px;accent-color:var(--ac);}
 .fc{display:flex;flex-direction:column;align-items:center;gap:2px;}
 .fb{min-width:30px;height:26px;display:flex;align-items:center;justify-content:center;background:var(--sf2);border:1.5px solid var(--bd);border-radius:5px;font-family:monospace;font-size:.82rem;color:var(--ac2);}
 .fc.act .fb{border-color:var(--yl);background:rgba(250,173,73,.2);color:var(--yl);}
+
+.algo-panel{width:280px;flex-shrink:0;border-left:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;}
+.algo-desc{font-size:.83rem;line-height:1.7;color:var(--tx);opacity:.9;}
+.tag-list{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem;}
+.tag{font-size:.7rem;padding:.18rem .52rem;border-radius:99px;background:rgba(124,106,247,.18);color:var(--ac);border:1px solid rgba(124,106,247,.35);}
+.pseudo-block{background:var(--sf2);border-radius:8px;padding:.6rem .75rem;font-family:'Cascadia Code','Fira Code',monospace;font-size:.78rem;line-height:1.75;border:1px solid var(--bd);}
+.ps-line{padding:.05rem .4rem;border-radius:4px;transition:all .18s;border-left:2px solid transparent;cursor:default;}
+.ps-indent{padding-left:1.4em;}
+.ps-indent2{padding-left:2.8em;}
+.ps-line.active{background:rgba(124,106,247,.22);color:var(--tx);border-left-color:var(--ac);font-weight:600;}
+.ps-line.dim{opacity:.28;}
+.ps-kw{color:#ff79c6;}
+.ps-cm{color:#6272a4;font-size:.72rem;}
+.complexity-row{display:flex;justify-content:space-between;font-size:.82rem;gap:.5rem;}
+.complexity-row span{background:var(--sf2);border-radius:6px;padding:.35rem .6rem;flex:1;text-align:center;border:1px solid var(--bd);}
+.complexity-row b{color:var(--ac2);}
+.ps-legend{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:.5rem;font-size:.7rem;color:var(--mu);}
+.ps-legend span::before{content:'■ ';color:var(--ac);}
 </style>
 </head>
 <body>
@@ -60,6 +78,7 @@ input[type=range]{width:70px;accent-color:var(--ac);}
       <div class="pnl-title">輸入</div>
       <div class="field"><label>文本 T（最多 30 字元）</label><input type="text" id="text-in" value="ababcabcababd"></div>
       <div class="field"><label>模式 P（最多 10 字元）</label><input type="text" id="pat-in" value="ababd"></div>
+      <button class="btn" id="rand-btn" style="width:100%;margin-bottom:.3rem;">&#127922; 隨機生成</button>
       <button class="btn btn-run" id="run-btn">▶ 執行</button>
     </div>
     <div class="pnl" style="flex:1">
@@ -81,6 +100,37 @@ input[type=range]{width:70px;accent-color:var(--ac);}
       <input type="range" id="speed" min="1" max="10" value="5">
     </div>
   </div>
+<div class="algo-panel">
+  <div class="pnl">
+    <div class="pnl-title">演算法原理</div>
+    <div class="algo-desc">預先建立失敗函數 fail[]，比對失敗時利用 fail 跳回而非從頭，避免重複比較。</div>
+    <div class="tag-list"><span class="tag">字串比對</span><span class="tag">失敗函數</span><span class="tag">前綴函數</span></div>
+  </div>
+  <div class="pnl">
+    <div class="pnl-title">虛擬碼</div>
+    <div class="pseudo-block" id="pseudo-main">
+        <div class="ps-line" id="l0"><span class='ps-kw'>建立 fail[]</span>: fail[0]=0, j=0</div>
+        <div class="ps-line" id="l1"><span class='ps-kw'>for</span> i=1 <span class='ps-kw'>to</span> m-1:</div>
+        <div class="ps-line ps-indent" id="l2"><span class='ps-kw'>while</span> j&gt;0 &amp;&amp; P[j]≠P[i]: j=fail[j-1]</div>
+        <div class="ps-line ps-indent" id="l3"><span class='ps-kw'>if</span> P[j]==P[i]: j++</div>
+        <div class="ps-line ps-indent" id="l4">fail[i] = j</div>
+        <div class="ps-line" id="l5"><span class='ps-kw'>比對</span>: j=0</div>
+        <div class="ps-line" id="l6"><span class='ps-kw'>for</span> i=0 <span class='ps-kw'>to</span> n-1:</div>
+        <div class="ps-line ps-indent" id="l7"><span class='ps-kw'>while</span> j&gt;0 &amp;&amp; P[j]≠T[i]: j=fail[j-1]</div>
+        <div class="ps-line ps-indent" id="l8"><span class='ps-kw'>if</span> P[j]==T[i]: j++</div>
+        <div class="ps-line ps-indent" id="l9"><span class='ps-kw'>if</span> j==m: 找到！j=fail[j-1]</div>
+    </div>
+      <div class="ps-legend"><span>當前執行行</span></div>
+  </div>
+  <div class="pnl">
+    <div class="pnl-title">複雜度</div>
+    <div class="complexity-row"><span>時間 <b>O(n+m)</b></span><span>空間 <b>O(m)</b></span></div>
+  </div>
+  <div class="pnl" style="flex:1">
+    <div class="pnl-title">使用時機</div>
+    <div class="algo-desc">• 字串搜尋<br>• 文字編輯器尋找功能<br>• DNA序列匹配<br></div>
+  </div>
+</div>
 </div>
 <script>
 const steps=[];let cur=-1,autoTimer=null;
@@ -95,7 +145,7 @@ function updateCtrl(){
 function goTo(i){
   if(i<0||i>=steps.length)return;
   cur=i;document.getElementById('step-info').innerHTML=steps[cur].desc;
-  render(steps[cur]);updateCtrl();
+  render(steps[cur]);highlightPhase(steps[cur].phase||'');updateCtrl();
 }
 document.getElementById('btn-first').onclick=()=>goTo(0);
 document.getElementById('btn-prev').onclick=()=>goTo(cur-1);
@@ -110,7 +160,7 @@ document.getElementById('btn-reset').onclick=()=>{
   if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
   document.getElementById('btn-play').textContent='▶ 自動';
   steps.length=0;cur=-1;document.getElementById('viz').innerHTML='';
-  document.getElementById('step-info').textContent='請按「執行」開始';updateCtrl();
+  document.getElementById('step-info').textContent='請按「執行」開始';highlightPhase('');updateCtrl();
 };
 
 function render(s){
@@ -201,5 +251,31 @@ document.getElementById('run-btn').onclick=function(){
   goTo(0);
 };
 updateCtrl();
+function randFill(){
+  const c='abcde';
+  const plen=3+Math.floor(Math.random()*4);
+  const pat=Array.from({length:plen},()=>c[Math.floor(Math.random()*3)]).join('');
+  const tlen=12+Math.floor(Math.random()*10);
+  let text=Array.from({length:tlen},()=>c[Math.floor(Math.random()*4)]).join('');
+  const pos=Math.floor(Math.random()*(tlen-plen));
+  text=text.slice(0,pos)+pat+text.slice(pos+plen);
+  document.getElementById('text-in').value=text;
+  document.getElementById('pat-in').value=pat;
+}
+document.getElementById('rand-btn').onclick=randFill;
+function highlightPhase(ph){
+  let phase=ph;
+  if(!phase&&steps.length>0){
+    if(cur===0)phase='init';
+    else if(cur===steps.length-1)phase='done';
+    else phase='process';
+  }
+  const MAP={fail:['l0','l1','l2','l3','l4'],match:['l5','l6','l7','l8','l9'],done:['l9']};
+  const allIds=Object.values(MAP).flat();
+  allIds.forEach(id=>{const el=document.getElementById(id);if(el){el.classList.remove('active','dim');}});
+  if(!phase||!MAP[phase])return;
+  const active=MAP[phase];
+  allIds.forEach(id=>{const el=document.getElementById(id);if(el){if(active.includes(id))el.classList.add('active');else el.classList.add('dim');}});
+}
 </script>
 </body></html>

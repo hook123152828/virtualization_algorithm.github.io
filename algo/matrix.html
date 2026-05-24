@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -6,7 +6,7 @@
 <style>
 :root{--bg:#0f1117;--sf:#1a1d27;--sf2:#22263a;--ac:#7c6af7;--ac2:#56cfb2;--tx:#e8eaf6;--mu:#8b90a8;--bd:#2e3250;--gr:#56cfb2;--rd:#f66868;--yl:#faad49;--bl:#63b3ed;}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;font-size:14px;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);height:100vh;overflow:hidden;display:flex;flex-direction:column;font-size:14px;}
 .tb{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;background:var(--sf);border-bottom:1px solid var(--bd);}
 .tb-back{color:var(--mu);text-decoration:none;font-size:.85rem;padding:.3rem .6rem;border-radius:6px;border:1px solid var(--bd);}
 .tb-back:hover{color:var(--tx);border-color:var(--ac);}
@@ -47,6 +47,24 @@ input[type=range]{width:70px;accent-color:var(--ac);}
 .result-box{background:rgba(86,207,178,.1);border:1px solid var(--gr);border-radius:8px;padding:.65rem 1rem;font-size:.9rem;margin-top:.5rem;}
 .sec{font-size:.78rem;color:var(--mu);font-weight:600;margin:.5rem 0 .4rem;display:flex;align-items:center;gap:.5rem;}
 .sec::after{content:'';flex:1;height:1px;background:var(--bd);}
+
+.algo-panel{width:280px;flex-shrink:0;border-left:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;}
+.algo-desc{font-size:.83rem;line-height:1.7;color:var(--tx);opacity:.9;}
+.tag-list{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.55rem;}
+.tag{font-size:.7rem;padding:.18rem .52rem;border-radius:99px;background:rgba(124,106,247,.18);color:var(--ac);border:1px solid rgba(124,106,247,.35);}
+.pseudo-block{background:var(--sf2);border-radius:8px;padding:.6rem .75rem;font-family:'Cascadia Code','Fira Code',monospace;font-size:.78rem;line-height:1.75;border:1px solid var(--bd);}
+.ps-line{padding:.05rem .4rem;border-radius:4px;transition:all .18s;border-left:2px solid transparent;cursor:default;}
+.ps-indent{padding-left:1.4em;}
+.ps-indent2{padding-left:2.8em;}
+.ps-line.active{background:rgba(124,106,247,.22);color:var(--tx);border-left-color:var(--ac);font-weight:600;}
+.ps-line.dim{opacity:.28;}
+.ps-kw{color:#ff79c6;}
+.ps-cm{color:#6272a4;font-size:.72rem;}
+.complexity-row{display:flex;justify-content:space-between;font-size:.82rem;gap:.5rem;}
+.complexity-row span{background:var(--sf2);border-radius:6px;padding:.35rem .6rem;flex:1;text-align:center;border:1px solid var(--bd);}
+.complexity-row b{color:var(--ac2);}
+.ps-legend{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:.5rem;font-size:.7rem;color:var(--mu);}
+.ps-legend span::before{content:'■ ';color:var(--ac);}
 </style>
 </head>
 <body>
@@ -64,6 +82,7 @@ input[type=range]{width:70px;accent-color:var(--ac);}
         <input type="text" id="r3" style="margin-top:4px" placeholder="（留空=2×2）"></div>
       <div class="field"><label>次方 p（計算 Aᵖ）</label><input type="number" id="p-in" value="10" min="0" max="1000000"></div>
       <div class="field"><label>取模 mod（0=不取模）</label><input type="number" id="mod-in" value="1000000007" min="0"></div>
+      <button class="btn" id="rand-btn" style="width:100%;margin-bottom:.3rem;">&#127922; 隨機生成</button>
       <button class="btn btn-run" id="run-btn">▶ 執行</button>
     </div>
     <div class="pnl" style="flex:1">
@@ -85,6 +104,35 @@ input[type=range]{width:70px;accent-color:var(--ac);}
       <input type="range" id="speed" min="1" max="10" value="5">
     </div>
   </div>
+<div class="algo-panel">
+  <div class="pnl">
+    <div class="pnl-title">演算法原理</div>
+    <div class="algo-desc">將矩陣乘法結合快速冪，O(n³ log p) 計算矩陣 p 次方。常用於線性遞推式的加速。</div>
+    <div class="tag-list"><span class="tag">矩陣乘法</span><span class="tag">快速冪</span><span class="tag">線性遞推</span></div>
+  </div>
+  <div class="pnl">
+    <div class="pnl-title">虛擬碼</div>
+    <div class="pseudo-block" id="pseudo-main">
+        <div class="ps-line" id="l0"><span class='ps-kw'>matmul</span>(A, B):  <span class='ps-cm'>// n×n 矩陣乘法</span></div>
+        <div class="ps-line ps-indent" id="l1">C[i][j] = Σ A[i][k] * B[k][j]</div>
+        <div class="ps-line" id="l2"><span class='ps-kw'>matpow</span>(A, p):</div>
+        <div class="ps-line ps-indent" id="l3">res = I  <span class='ps-cm'>// 單位矩陣</span></div>
+        <div class="ps-line ps-indent" id="l4"><span class='ps-kw'>while</span> p&gt;0:</div>
+        <div class="ps-line ps-indent2" id="l5"><span class='ps-kw'>if</span> p&amp;1: res = matmul(res, A)</div>
+        <div class="ps-line ps-indent2" id="l6">A = matmul(A, A); p&gt;&gt;=1</div>
+        <div class="ps-line ps-indent" id="l7"><span class='ps-kw'>return</span> res</div>
+    </div>
+      <div class="ps-legend"><span>當前執行行</span></div>
+  </div>
+  <div class="pnl">
+    <div class="pnl-title">複雜度</div>
+    <div class="complexity-row"><span>時間 <b>O(n³ log p)</b></span><span>空間 <b>O(n²)</b></span></div>
+  </div>
+  <div class="pnl" style="flex:1">
+    <div class="pnl-title">使用時機</div>
+    <div class="algo-desc">• Fibonacci第n項O(log n)<br>• 線性遞推加速<br>• 圖的k步路徑計數<br></div>
+  </div>
+</div>
 </div>
 <script>
 const steps=[];let cur=-1,autoTimer=null;
@@ -99,7 +147,7 @@ function updateCtrl(){
 function goTo(i){
   if(i<0||i>=steps.length)return;
   cur=i;document.getElementById('step-info').innerHTML=steps[cur].desc;
-  render(steps[cur]);updateCtrl();
+  render(steps[cur]);highlightPhase(steps[cur].phase||'');updateCtrl();
 }
 document.getElementById('btn-first').onclick=()=>goTo(0);
 document.getElementById('btn-prev').onclick=()=>goTo(cur-1);
@@ -114,7 +162,7 @@ document.getElementById('btn-reset').onclick=()=>{
   if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
   document.getElementById('btn-play').textContent='▶ 自動';
   steps.length=0;cur=-1;document.getElementById('viz').innerHTML='';
-  document.getElementById('step-info').textContent='請按「執行」開始';updateCtrl();
+  document.getElementById('step-info').textContent='請按「執行」開始';highlightPhase('');updateCtrl();
 };
 
 function matMul(A,B,mod){
@@ -192,5 +240,29 @@ document.getElementById('run-btn').onclick=function(){
   goTo(0);
 };
 updateCtrl();
+function randFill(){
+  const sz=2+Math.floor(Math.random()*2);
+  const row=()=>Array.from({length:sz},()=>Math.floor(Math.random()*5)).join(' ');
+  document.getElementById('r1').value=row();
+  document.getElementById('r2').value=row();
+  document.getElementById('r3').value=sz===3?row():'';
+  document.getElementById('p-in').value=2+Math.floor(Math.random()*5);
+  document.getElementById('mod-in').value=Math.random()<0.5?0:[97,1000000007][Math.floor(Math.random()*2)];
+}
+document.getElementById('rand-btn').onclick=randFill;
+function highlightPhase(ph){
+  let phase=ph;
+  if(!phase&&steps.length>0){
+    if(cur===0)phase='init';
+    else if(cur===steps.length-1)phase='done';
+    else phase='process';
+  }
+  const MAP={init:['l0','l1'],process:['l2','l3','l4','l5','l6'],done:['l7']};
+  const allIds=Object.values(MAP).flat();
+  allIds.forEach(id=>{const el=document.getElementById(id);if(el){el.classList.remove('active','dim');}});
+  if(!phase||!MAP[phase])return;
+  const active=MAP[phase];
+  allIds.forEach(id=>{const el=document.getElementById(id);if(el){if(active.includes(id))el.classList.add('active');else el.classList.add('dim');}});
+}
 </script>
 </body></html>
