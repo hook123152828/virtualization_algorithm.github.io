@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>離散化 - 競程視覺化</title>
+<style>
+:root{--bg:#0f1117;--sf:#1a1d27;--sf2:#22263a;--ac:#7c6af7;--ac2:#56cfb2;--tx:#e8eaf6;--mu:#8b90a8;--bd:#2e3250;--tg:#2a2d45;--gr:#56cfb2;--rd:#f66868;--yl:#faad49;--bl:#63b3ed;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;font-size:14px;}
+.tb{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0;}
+.tb-back{color:var(--mu);text-decoration:none;font-size:.85rem;padding:.3rem .6rem;border-radius:6px;border:1px solid var(--bd);transition:all .15s;}
+.tb-back:hover{color:var(--tx);border-color:var(--ac);}
+.tb-title{font-size:1.05rem;font-weight:700;background:linear-gradient(90deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.tb-sub{font-size:.78rem;color:var(--mu);}
+.layout{display:flex;flex:1;min-height:0;}
+.left{width:300px;flex-shrink:0;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;}
+.right{flex:1;display:flex;flex-direction:column;min-width:0;}
+.pnl{padding:1rem;border-bottom:1px solid var(--bd);}
+.pnl-title{font-size:.72rem;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.7rem;}
+.field{margin-bottom:.6rem;}
+.field label{display:block;font-size:.78rem;color:var(--mu);margin-bottom:.22rem;}
+input[type=text]{width:100%;background:var(--sf2);border:1px solid var(--bd);color:var(--tx);padding:.45rem .7rem;border-radius:7px;font-size:.88rem;outline:none;}
+input[type=text]:focus{border-color:var(--ac);}
+.btn{padding:.4rem .85rem;border-radius:7px;border:1px solid var(--bd);background:var(--sf2);color:var(--tx);font-size:.82rem;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.btn:hover:not(:disabled){border-color:var(--ac);background:rgba(124,106,247,.15);}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn-run{background:var(--ac);border-color:var(--ac);font-weight:600;width:100%;margin-top:.4rem;}
+.btn-run:hover:not(:disabled){opacity:.85;background:var(--ac);}
+.btn-play{background:rgba(86,207,178,.12);border-color:var(--ac2);color:var(--ac2);}
+.step-box{background:var(--sf2);border-radius:8px;padding:.75rem .9rem;font-size:.85rem;line-height:1.65;min-height:80px;}
+.step-cnt{margin-top:.4rem;font-size:.72rem;color:var(--mu);text-align:right;}
+.ctrl{display:flex;align-items:center;gap:.5rem;padding:.65rem 1rem;border-top:1px solid var(--bd);background:var(--sf);flex-wrap:wrap;flex-shrink:0;}
+.sp-lbl{font-size:.75rem;color:var(--mu);}
+input[type=range]{width:70px;accent-color:var(--ac);}
+.viz{flex:1;padding:1.25rem;overflow:auto;}
+.arr-row{display:flex;flex-wrap:wrap;gap:.45rem;align-items:flex-end;margin-bottom:1.2rem;}
+.c{display:flex;flex-direction:column;align-items:center;gap:.18rem;}
+.cb{min-width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:var(--sf2);border:2px solid var(--bd);border-radius:7px;font-family:monospace;font-weight:700;font-size:.92rem;transition:all .25s;}
+.ci{font-size:.6rem;color:var(--mu);}
+.cb.hl{background:rgba(124,106,247,.3);border-color:var(--ac);color:#c0b4ff;}
+.cb.act{background:rgba(250,173,73,.25);border-color:var(--yl);color:var(--yl);}
+.cb.ok{background:rgba(86,207,178,.2);border-color:var(--gr);color:var(--gr);}
+.cb.rm{background:rgba(246,104,104,.15);border-color:var(--rd);color:var(--rd);text-decoration:line-through;opacity:.5;}
+.sec{font-size:.78rem;color:var(--mu);font-weight:600;margin:.4rem 0 .5rem;display:flex;align-items:center;gap:.5rem;}
+.sec::after{content:'';flex:1;height:1px;background:var(--bd);}
+.arrow-row{display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:1rem;}
+.arrow-item{display:flex;flex-direction:column;align-items:center;gap:.15rem;font-size:.78rem;font-family:monospace;}
+.arrow-val{background:rgba(124,106,247,.25);border:1px solid var(--ac);border-radius:5px;padding:.15rem .5rem;color:#c0b4ff;}
+.arrow-lbl{color:var(--mu);}
+</style>
+</head>
+<body>
+<div class="tb">
+  <a class="tb-back" href="../index.html">← 返回</a>
+  <div><div class="tb-title">離散化（座標壓縮）</div>
+  <div class="tb-sub">#01 · 將大值映射到連續小整數</div></div>
+</div>
+<div class="layout">
+  <div class="left">
+    <div class="pnl">
+      <div class="pnl-title">輸入</div>
+      <div class="field"><label>數列（空格分隔）</label>
+        <input type="text" id="arr-input" value="100 200 150 100 300 50 200"></div>
+      <button class="btn btn-run" id="run-btn">▶ 執行</button>
+    </div>
+    <div class="pnl" style="flex:1">
+      <div class="pnl-title">步驟說明</div>
+      <div class="step-box" id="step-info">請按「執行」開始</div>
+      <div class="step-cnt" id="step-cnt">— / —</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="viz" id="viz"></div>
+    <div class="ctrl">
+      <button class="btn" id="btn-first" disabled>|◀</button>
+      <button class="btn" id="btn-prev" disabled>◀</button>
+      <button class="btn btn-play" id="btn-play" disabled>▶ 自動</button>
+      <button class="btn" id="btn-next" disabled>▶</button>
+      <button class="btn" id="btn-last" disabled>▶|</button>
+      <button class="btn" id="btn-reset">↺ 重置</button>
+      <span class="sp-lbl">速度</span>
+      <input type="range" id="speed" min="1" max="10" value="5">
+    </div>
+  </div>
+</div>
+<script>
+const steps=[];let cur=-1,autoTimer=null;
+function getDelay(){return 1200-document.getElementById('speed').value*110;}
+function updateCtrl(){
+  const n=steps.length;
+  document.getElementById('btn-first').disabled=cur<=0;
+  document.getElementById('btn-prev').disabled=cur<=0;
+  document.getElementById('btn-next').disabled=cur>=n-1;
+  document.getElementById('btn-last').disabled=cur>=n-1;
+  document.getElementById('btn-play').disabled=n===0;
+  document.getElementById('step-cnt').textContent=n>0?`${cur+1} / ${n}`:'— / —';
+}
+function goTo(i){
+  if(i<0||i>=steps.length)return;
+  cur=i;
+  document.getElementById('step-info').innerHTML=steps[cur].desc;
+  render(steps[cur]);
+  updateCtrl();
+}
+document.getElementById('btn-first').onclick=()=>goTo(0);
+document.getElementById('btn-prev').onclick=()=>goTo(cur-1);
+document.getElementById('btn-next').onclick=()=>goTo(cur+1);
+document.getElementById('btn-last').onclick=()=>goTo(steps.length-1);
+document.getElementById('btn-play').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;this.textContent='▶ 自動';}
+  else{
+    if(cur>=steps.length-1)goTo(0);
+    this.textContent='⏸ 暫停';
+    autoTimer=setInterval(()=>{
+      if(cur>=steps.length-1){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}
+      else goTo(cur+1);
+    },getDelay());
+  }
+};
+document.getElementById('btn-reset').onclick=()=>{
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
+  document.getElementById('btn-play').textContent='▶ 自動';
+  steps.length=0;cur=-1;
+  document.getElementById('viz').innerHTML='';
+  document.getElementById('step-info').textContent='請按「執行」開始';
+  updateCtrl();
+};
+
+function cellHTML(val,idx,cls=''){
+  return `<div class="c"><div class="cb ${cls}">${val}</div><div class="ci">[${idx}]</div></div>`;
+}
+function render(s){
+  const v=document.getElementById('viz');
+  let h='';
+  // original
+  h+=`<div class="sec">原始數列</div><div class="arr-row">`;
+  s.orig.forEach((x,i)=>{
+    const cls=s.origHL&&s.origHL[i]?s.origHL[i]:'';
+    h+=cellHTML(x,i,cls);
+  });
+  h+='</div>';
+  // sorted
+  if(s.sorted){
+    h+=`<div class="sec">排序後</div><div class="arr-row">`;
+    s.sorted.forEach((x,i)=>{
+      const cls=s.sortedHL&&s.sortedHL[i]?s.sortedHL[i]:'';
+      h+=cellHTML(x,i,cls);
+    });
+    h+='</div>';
+  }
+  // unique
+  if(s.uniq){
+    h+=`<div class="sec">去重後（映射表）</div><div class="arr-row">`;
+    s.uniq.forEach((x,i)=>{
+      const cls=s.uniqHL&&s.uniqHL[i]?s.uniqHL[i]:'';
+      h+=`<div class="c"><div class="cb ${cls}">${x}</div><div class="ci">rank ${i}</div></div>`;
+    });
+    h+='</div>';
+  }
+  // rank result
+  if(s.ranks){
+    h+=`<div class="sec">離散化結果</div><div class="arrow-row">`;
+    s.ranks.forEach((r,i)=>{
+      const active=s.rankHL===i;
+      h+=`<div class="arrow-item"><div class="arrow-val" style="${active?'border-color:var(--yl);background:rgba(250,173,73,.3);color:var(--yl)':''}">${s.orig[i]}</div><div style="color:var(--mu);font-size:.7rem">▼</div><div class="arrow-val" style="${active?'border-color:var(--gr);background:rgba(86,207,178,.25);color:var(--gr)':''}">${r}</div><div class="arrow-lbl">原→rank</div></div>`;
+    });
+    h+='</div>';
+  }
+  v.innerHTML=h;
+}
+
+document.getElementById('run-btn').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}
+  steps.length=0;cur=-1;
+  const raw=document.getElementById('arr-input').value.trim();
+  const orig=raw.split(/\s+/).map(Number).filter(x=>!isNaN(x));
+  if(orig.length===0){alert('請輸入有效數列');return;}
+
+  // Step 0: show original
+  steps.push({desc:'<b>原始數列</b><br>給定一組數值，可能很大、有重複。離散化的目標是將它們映射為連續的小整數（rank）。',orig:[...orig]});
+  // Step 1: sort
+  const sorted=[...orig].sort((a,b)=>a-b);
+  steps.push({desc:'<b>步驟 1：排序</b><br>將數列排序，為下一步去重做準備。',orig:[...orig],sorted:[...sorted]});
+  // Step 2: remove dups
+  const uniq=[...new Set(sorted)];
+  const rmHL=sorted.map(x=>uniq.includes(x)?'':'rm');
+  // highlight duplicates in sorted
+  const seen=new Set();
+  const sortedHL=sorted.map(x=>{if(seen.has(x))return'rm';seen.add(x);return'ok';});
+  steps.push({desc:`<b>步驟 2：去重</b><br>移除重複元素，得到長度為 ${uniq.length} 的映射表（universe）。`,orig:[...orig],sorted:[...sorted],sortedHL,uniq:[...uniq]});
+  // Step 3+: map each element
+  const ranks=new Array(orig.length).fill(-1);
+  orig.forEach((x,i)=>{
+    const rank=uniq.indexOf(x);
+    ranks[i]=rank;
+    const uniqHL=uniq.map((u,j)=>j===rank?'act':'');
+    const origHL=orig.map((_,k)=>k===i?'act':k<i?'ok':'');
+    steps.push({desc:`<b>步驟 3.${i+1}：映射 orig[${i}]=${x}</b><br>在映射表中找到 ${x} 的位置（lower_bound），rank = <b>${rank}</b>。`,orig:[...orig],origHL,sorted:[...sorted],uniq:[...uniq],uniqHL,ranks:[...ranks],rankHL:i});
+  });
+  // final
+  steps.push({desc:`<b>完成！</b><br>所有 ${orig.length} 個元素都已映射到 rank。原本的值域從 [${Math.min(...orig)}, ${Math.max(...orig)}] 壓縮到 [0, ${uniq.length-1}]。`,orig:[...orig],sorted:[...sorted],uniq:[...uniq],ranks:[...ranks]});
+  goTo(0);
+};
+updateCtrl();
+</script>
+</body></html>

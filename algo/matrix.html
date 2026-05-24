@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>矩陣快速冪 - 競程視覺化</title>
+<style>
+:root{--bg:#0f1117;--sf:#1a1d27;--sf2:#22263a;--ac:#7c6af7;--ac2:#56cfb2;--tx:#e8eaf6;--mu:#8b90a8;--bd:#2e3250;--gr:#56cfb2;--rd:#f66868;--yl:#faad49;--bl:#63b3ed;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;font-size:14px;}
+.tb{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;background:var(--sf);border-bottom:1px solid var(--bd);}
+.tb-back{color:var(--mu);text-decoration:none;font-size:.85rem;padding:.3rem .6rem;border-radius:6px;border:1px solid var(--bd);}
+.tb-back:hover{color:var(--tx);border-color:var(--ac);}
+.tb-title{font-size:1.05rem;font-weight:700;background:linear-gradient(90deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.tb-sub{font-size:.78rem;color:var(--mu);}
+.layout{display:flex;flex:1;min-height:0;}
+.left{width:300px;flex-shrink:0;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;}
+.right{flex:1;display:flex;flex-direction:column;}
+.pnl{padding:1rem;border-bottom:1px solid var(--bd);}
+.pnl-title{font-size:.72rem;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.7rem;}
+.field{margin-bottom:.6rem;}
+.field label{display:block;font-size:.78rem;color:var(--mu);margin-bottom:.22rem;}
+input[type=text],input[type=number]{width:100%;background:var(--sf2);border:1px solid var(--bd);color:var(--tx);padding:.45rem .7rem;border-radius:7px;font-size:.88rem;outline:none;}
+input[type=text]:focus,input[type=number]:focus{border-color:var(--ac);}
+.btn{padding:.4rem .85rem;border-radius:7px;border:1px solid var(--bd);background:var(--sf2);color:var(--tx);font-size:.82rem;cursor:pointer;transition:all .15s;}
+.btn:hover:not(:disabled){border-color:var(--ac);background:rgba(124,106,247,.15);}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn-run{background:var(--ac);border-color:var(--ac);font-weight:600;width:100%;margin-top:.4rem;}
+.btn-run:hover:not(:disabled){opacity:.85;}
+.btn-play{background:rgba(86,207,178,.12);border-color:var(--ac2);color:var(--ac2);}
+.step-box{background:var(--sf2);border-radius:8px;padding:.75rem .9rem;font-size:.85rem;line-height:1.65;min-height:80px;}
+.step-cnt{margin-top:.4rem;font-size:.72rem;color:var(--mu);text-align:right;}
+.ctrl{display:flex;align-items:center;gap:.5rem;padding:.65rem 1rem;border-top:1px solid var(--bd);background:var(--sf);flex-wrap:wrap;}
+.sp-lbl{font-size:.75rem;color:var(--mu);}
+input[type=range]{width:70px;accent-color:var(--ac);}
+.viz{flex:1;padding:1.25rem;overflow:auto;}
+.matrix-section{display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:1rem;align-items:flex-start;}
+.matrix-box{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:.75rem 1rem;}
+.matrix-label{font-size:.72rem;color:var(--mu);margin-bottom:.4rem;font-weight:600;}
+.matrix-grid{display:inline-grid;gap:4px;font-family:monospace;font-size:.85rem;}
+.mc{min-width:36px;height:32px;display:flex;align-items:center;justify-content:center;background:var(--sf);border-radius:4px;border:1px solid var(--bd);}
+.mc.hl{background:rgba(124,106,247,.3);border-color:var(--ac);color:#c0b4ff;}
+.mc.ok{background:rgba(86,207,178,.2);border-color:var(--gr);color:var(--gr);}
+.iter-table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:.5rem;}
+.iter-table th,.iter-table td{padding:.35rem .6rem;border:1px solid var(--bd);text-align:center;}
+.iter-table th{background:var(--sf2);color:var(--mu);}
+.iter-table tr.cur-row td{background:rgba(250,173,73,.2);border-color:var(--yl);}
+.result-box{background:rgba(86,207,178,.1);border:1px solid var(--gr);border-radius:8px;padding:.65rem 1rem;font-size:.9rem;margin-top:.5rem;}
+.sec{font-size:.78rem;color:var(--mu);font-weight:600;margin:.5rem 0 .4rem;display:flex;align-items:center;gap:.5rem;}
+.sec::after{content:'';flex:1;height:1px;background:var(--bd);}
+</style>
+</head>
+<body>
+<div class="tb">
+  <a class="tb-back" href="../index.html">← 返回</a>
+  <div><div class="tb-title">矩陣快速冪</div><div class="tb-sub">#03 · 矩陣乘法 + 快速冪 O(n³ log p)</div></div>
+</div>
+<div class="layout">
+  <div class="left">
+    <div class="pnl">
+      <div class="pnl-title">輸入</div>
+      <div class="field"><label>矩陣 A（每行一列，空格分隔，最大 3×3）</label>
+        <input type="text" id="r1" placeholder="1 1"><br>
+        <input type="text" id="r2" style="margin-top:4px" placeholder="1 0"><br>
+        <input type="text" id="r3" style="margin-top:4px" placeholder="（留空=2×2）"></div>
+      <div class="field"><label>次方 p（計算 Aᵖ）</label><input type="number" id="p-in" value="10" min="0" max="1000000"></div>
+      <div class="field"><label>取模 mod（0=不取模）</label><input type="number" id="mod-in" value="1000000007" min="0"></div>
+      <button class="btn btn-run" id="run-btn">▶ 執行</button>
+    </div>
+    <div class="pnl" style="flex:1">
+      <div class="pnl-title">步驟說明</div>
+      <div class="step-box" id="step-info">請按「執行」開始</div>
+      <div class="step-cnt" id="step-cnt">— / —</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="viz" id="viz"></div>
+    <div class="ctrl">
+      <button class="btn" id="btn-first" disabled>|◀</button>
+      <button class="btn" id="btn-prev" disabled>◀</button>
+      <button class="btn btn-play" id="btn-play" disabled>▶ 自動</button>
+      <button class="btn" id="btn-next" disabled>▶</button>
+      <button class="btn" id="btn-last" disabled>▶|</button>
+      <button class="btn" id="btn-reset">↺ 重置</button>
+      <span class="sp-lbl">速度</span>
+      <input type="range" id="speed" min="1" max="10" value="5">
+    </div>
+  </div>
+</div>
+<script>
+const steps=[];let cur=-1,autoTimer=null;
+function getDelay(){return 1200-document.getElementById('speed').value*110;}
+function updateCtrl(){
+  const n=steps.length;
+  ['btn-first','btn-prev'].forEach(id=>document.getElementById(id).disabled=cur<=0);
+  ['btn-next','btn-last'].forEach(id=>document.getElementById(id).disabled=cur>=n-1);
+  document.getElementById('btn-play').disabled=n===0;
+  document.getElementById('step-cnt').textContent=n>0?`${cur+1} / ${n}`:'— / —';
+}
+function goTo(i){
+  if(i<0||i>=steps.length)return;
+  cur=i;document.getElementById('step-info').innerHTML=steps[cur].desc;
+  render(steps[cur]);updateCtrl();
+}
+document.getElementById('btn-first').onclick=()=>goTo(0);
+document.getElementById('btn-prev').onclick=()=>goTo(cur-1);
+document.getElementById('btn-next').onclick=()=>goTo(cur+1);
+document.getElementById('btn-last').onclick=()=>goTo(steps.length-1);
+document.getElementById('btn-play').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;this.textContent='▶ 自動';}
+  else{if(cur>=steps.length-1)goTo(0);this.textContent='⏸ 暫停';
+    autoTimer=setInterval(()=>{if(cur>=steps.length-1){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}else goTo(cur+1);},getDelay());}
+};
+document.getElementById('btn-reset').onclick=()=>{
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
+  document.getElementById('btn-play').textContent='▶ 自動';
+  steps.length=0;cur=-1;document.getElementById('viz').innerHTML='';
+  document.getElementById('step-info').textContent='請按「執行」開始';updateCtrl();
+};
+
+function matMul(A,B,mod){
+  const n=A.length;
+  const C=Array.from({length:n},()=>new Array(n).fill(0));
+  for(let i=0;i<n;i++)for(let k=0;k<n;k++)if(A[i][k])for(let j=0;j<n;j++){
+    C[i][j]+=A[i][k]*B[k][j];
+    if(mod)C[i][j]%=mod;
+  }
+  return C;
+}
+function matSnap(M){return M.map(r=>[...r]);}
+function identity(n){return Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>i===j?1:0));}
+
+function renderMatrix(label,M,n,hlCls){
+  let h=`<div class="matrix-box"><div class="matrix-label">${label}</div>`;
+  h+=`<div class="matrix-grid" style="grid-template-columns:repeat(${n},1fr)">`;
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++){
+    h+=`<div class="mc ${hlCls||''}">${M[i][j]}</div>`;
+  }
+  h+='</div></div>';return h;
+}
+
+function render(s){
+  let h='<div class="matrix-section">';
+  h+=renderMatrix('A（底數）',s.A,s.n);
+  h+=renderMatrix('res（結果）',s.res,s.n,'');
+  h+='</div>';
+  if(s.rows){
+    h+=`<div class="sec">快速冪迭代過程</div>`;
+    h+=`<table class="iter-table"><thead><tr><th>迭代</th><th>b（指數）</th><th>b&1</th><th>動作</th></tr></thead><tbody>`;
+    s.rows.forEach((r,i)=>{
+      h+=`<tr class="${i===s.curRow?'cur-row':''}"><td>${i+1}</td><td>${r.b}</td><td>${r.bit}</td><td>${r.action}</td></tr>`;
+    });
+    h+='</tbody></table>';
+  }
+  if(s.done)h+=`<div class="result-box">A<sup>${s.p}</sup> 計算完成！結果矩陣已顯示在上方。</div>`;
+  document.getElementById('viz').innerHTML=h;
+}
+
+document.getElementById('run-btn').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}
+  steps.length=0;cur=-1;
+  // Parse matrix
+  const rows=[];
+  ['r1','r2','r3'].forEach(id=>{
+    const val=document.getElementById(id).value.trim();
+    if(val)rows.push(val.split(/\s+/).map(Number));
+  });
+  if(rows.length<2){document.getElementById('step-info').textContent='請至少輸入 2 行矩陣';return;}
+  const n=rows.length;
+  const A=rows.map(r=>r.slice(0,n));
+  let p=parseInt(document.getElementById('p-in').value)||10;
+  const mod=parseInt(document.getElementById('mod-in').value)||0;
+  let res=identity(n);
+  let a=matSnap(A);
+  const iterRows=[];
+  steps.push({A:matSnap(a),res:matSnap(res),n,p,desc:`<b>矩陣快速冪</b><br>計算 A<sup>${p}</sup>，矩陣大小 ${n}×${n}。<br>每次: b&1=1 則 res*=A，A*=A，b>>=1`});
+  let b=p;
+  while(b>0){
+    const bit=b&1;
+    if(bit){
+      res=matMul(res,a,mod);
+      iterRows.push({b,bit:1,action:`res *= A (b 末位為 1)`});
+      steps.push({A:matSnap(a),res:matSnap(res),n,p,rows:[...iterRows],curRow:iterRows.length-1,desc:`<b>b=${b}, b&1=1</b><br>res = res × A，更新結果矩陣。`});
+    } else {
+      iterRows.push({b,bit:0,action:`跳過（b 末位為 0）`});
+      steps.push({A:matSnap(a),res:matSnap(res),n,p,rows:[...iterRows],curRow:iterRows.length-1,desc:`<b>b=${b}, b&1=0</b><br>跳過 res 更新。`});
+    }
+    a=matMul(a,a,mod);
+    b>>=1;
+    if(b>0)steps.push({A:matSnap(a),res:matSnap(res),n,p,rows:[...iterRows],curRow:iterRows.length-1,desc:`<b>A 平方</b><br>A = A × A，b >>= 1 = ${b}`});
+  }
+  steps.push({A:matSnap(a),res:matSnap(res),n,p,rows:[...iterRows],done:true,desc:`<b>完成！</b><br>A<sup>${p}</sup> 計算完畢，共迭代 ${iterRows.length} 次。`});
+  goTo(0);
+};
+updateCtrl();
+</script>
+</body></html>

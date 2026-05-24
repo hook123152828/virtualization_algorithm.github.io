@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>二元樹走訪 - 競程視覺化</title>
+<style>
+:root{--bg:#0f1117;--sf:#1a1d27;--sf2:#22263a;--ac:#7c6af7;--ac2:#56cfb2;--tx:#e8eaf6;--mu:#8b90a8;--bd:#2e3250;--gr:#56cfb2;--rd:#f66868;--yl:#faad49;--bl:#63b3ed;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;font-size:14px;}
+.tb{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;background:var(--sf);border-bottom:1px solid var(--bd);}
+.tb-back{color:var(--mu);text-decoration:none;font-size:.85rem;padding:.3rem .6rem;border-radius:6px;border:1px solid var(--bd);}
+.tb-back:hover{color:var(--tx);border-color:var(--ac);}
+.tb-title{font-size:1.05rem;font-weight:700;background:linear-gradient(90deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.tb-sub{font-size:.78rem;color:var(--mu);}
+.layout{display:flex;flex:1;min-height:0;}
+.left{width:300px;flex-shrink:0;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;}
+.right{flex:1;display:flex;flex-direction:column;}
+.pnl{padding:1rem;border-bottom:1px solid var(--bd);}
+.pnl-title{font-size:.72rem;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.7rem;}
+.field{margin-bottom:.6rem;}
+.field label{display:block;font-size:.78rem;color:var(--mu);margin-bottom:.22rem;}
+input[type=text],textarea{width:100%;background:var(--sf2);border:1px solid var(--bd);color:var(--tx);padding:.45rem .7rem;border-radius:7px;font-size:.88rem;outline:none;}
+input[type=text]:focus,textarea:focus{border-color:var(--ac);}
+.btn{padding:.4rem .85rem;border-radius:7px;border:1px solid var(--bd);background:var(--sf2);color:var(--tx);font-size:.82rem;cursor:pointer;transition:all .15s;}
+.btn:hover:not(:disabled){border-color:var(--ac);background:rgba(124,106,247,.15);}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn-run{background:var(--ac);border-color:var(--ac);font-weight:600;width:100%;margin-top:.4rem;}
+.btn-run:hover:not(:disabled){opacity:.85;}
+.btn-play{background:rgba(86,207,178,.12);border-color:var(--ac2);color:var(--ac2);}
+.radio-grp{display:flex;gap:.5rem;flex-wrap:wrap;}
+.radio-grp label{display:flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.83rem;}
+.step-box{background:var(--sf2);border-radius:8px;padding:.75rem .9rem;font-size:.85rem;line-height:1.65;min-height:80px;}
+.step-cnt{margin-top:.4rem;font-size:.72rem;color:var(--mu);text-align:right;}
+.ctrl{display:flex;align-items:center;gap:.5rem;padding:.65rem 1rem;border-top:1px solid var(--bd);background:var(--sf);flex-wrap:wrap;}
+.sp-lbl{font-size:.75rem;color:var(--mu);}
+input[type=range]{width:70px;accent-color:var(--ac);}
+.viz{flex:1;padding:1.25rem;overflow:auto;display:flex;flex-direction:column;gap:.75rem;}
+svg.gsvg{background:var(--sf2);border-radius:10px;border:1px solid var(--bd);}
+.out-row{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;}
+.out-cell{min-width:32px;height:32px;border-radius:6px;border:1.5px solid var(--gr);background:rgba(86,207,178,.12);display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:var(--gr);}
+.out-label{font-size:.75rem;color:var(--mu);font-weight:600;}
+</style>
+</head>
+<body>
+<div class="tb">
+  <a class="tb-back" href="../index.html">← 返回</a>
+  <div><div class="tb-title">二元樹走訪</div><div class="tb-sub">#30 · 前序 / 中序 / 後序，O(n)</div></div>
+</div>
+<div class="layout">
+  <div class="left">
+    <div class="pnl">
+      <div class="pnl-title">輸入</div>
+      <div class="field">
+        <label>陣列表示（BFS 層序，null=空，最多 15 節點）</label>
+        <input type="text" id="arr-in" value="1 2 3 4 5 null 6 null null 7">
+      </div>
+      <div class="field">
+        <label>走訪順序</label>
+        <div class="radio-grp">
+          <label><input type="radio" name="mode" value="pre" checked> 前序（根左右）</label>
+          <label><input type="radio" name="mode" value="in"> 中序（左根右）</label>
+          <label><input type="radio" name="mode" value="post"> 後序（左右根）</label>
+        </div>
+      </div>
+      <button class="btn btn-run" id="run-btn">▶ 執行</button>
+    </div>
+    <div class="pnl" style="flex:1">
+      <div class="pnl-title">步驟說明</div>
+      <div class="step-box" id="step-info">請按「執行」開始</div>
+      <div class="step-cnt" id="step-cnt">— / —</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="viz" id="viz"></div>
+    <div class="ctrl">
+      <button class="btn" id="btn-first" disabled>|◀</button>
+      <button class="btn" id="btn-prev" disabled>◀</button>
+      <button class="btn btn-play" id="btn-play" disabled>▶ 自動</button>
+      <button class="btn" id="btn-next" disabled>▶</button>
+      <button class="btn" id="btn-last" disabled>▶|</button>
+      <button class="btn" id="btn-reset">↺ 重置</button>
+      <span class="sp-lbl">速度</span>
+      <input type="range" id="speed" min="1" max="10" value="5">
+    </div>
+  </div>
+</div>
+<script>
+const steps=[];let cur=-1,autoTimer=null;
+function getDelay(){return 1200-document.getElementById('speed').value*110;}
+function updateCtrl(){
+  const m=steps.length;
+  ['btn-first','btn-prev'].forEach(id=>document.getElementById(id).disabled=cur<=0);
+  ['btn-next','btn-last'].forEach(id=>document.getElementById(id).disabled=cur>=m-1);
+  document.getElementById('btn-play').disabled=m===0;
+  document.getElementById('step-cnt').textContent=m>0?`${cur+1} / ${m}`:'— / —';
+}
+function goTo(i){
+  if(i<0||i>=steps.length)return;
+  cur=i;document.getElementById('step-info').innerHTML=steps[cur].desc;
+  render(steps[cur]);updateCtrl();
+}
+document.getElementById('btn-first').onclick=()=>goTo(0);
+document.getElementById('btn-prev').onclick=()=>goTo(cur-1);
+document.getElementById('btn-next').onclick=()=>goTo(cur+1);
+document.getElementById('btn-last').onclick=()=>goTo(steps.length-1);
+document.getElementById('btn-play').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;this.textContent='▶ 自動';}
+  else{if(cur>=steps.length-1)goTo(0);this.textContent='⏸ 暫停';
+    autoTimer=setInterval(()=>{if(cur>=steps.length-1){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}else goTo(cur+1);},getDelay());}
+};
+document.getElementById('btn-reset').onclick=()=>{
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
+  document.getElementById('btn-play').textContent='▶ 自動';
+  steps.length=0;cur=-1;document.getElementById('viz').innerHTML='';
+  document.getElementById('step-info').textContent='請按「執行」開始';updateCtrl();
+};
+
+function getNodePositions(nodes){
+  // nodes: 1-indexed array, nodes[1]=root
+  const pos={};
+  function place(i,lo,hi,depth){
+    if(i>=nodes.length||nodes[i]==null)return;
+    const mx=(lo+hi)/2;
+    pos[i]={x:mx,y:40+depth*60};
+    place(2*i,lo,mx-1,depth+1);
+    place(2*i+1,mx+1,hi,depth+1);
+  }
+  const W=460;
+  place(1,0,W,0);
+  return{pos,W};
+}
+
+function render(s){
+  const{nodes,curNode,visited,output}=s;
+  const{pos,W}=getNodePositions(nodes);
+  const H=280;
+  let svg=`<svg class="gsvg" viewBox="0 0 ${W} ${H}" style="width:${W}px;height:${H}px">`;
+  for(let i=1;i<nodes.length;i++){
+    if(nodes[i]==null||!pos[i])continue;
+    const l=2*i,r=2*i+1;
+    if(l<nodes.length&&nodes[l]!=null&&pos[l])svg+=`<line x1="${pos[i].x}" y1="${pos[i].y}" x2="${pos[l].x}" y2="${pos[l].y}" stroke="#2e3250" stroke-width="1.5"/>`;
+    if(r<nodes.length&&nodes[r]!=null&&pos[r])svg+=`<line x1="${pos[i].x}" y1="${pos[i].y}" x2="${pos[r].x}" y2="${pos[r].y}" stroke="#2e3250" stroke-width="1.5"/>`;
+  }
+  for(let i=1;i<nodes.length;i++){
+    if(nodes[i]==null||!pos[i])continue;
+    const p=pos[i];const isCur=i===curNode;const isVis=visited&&visited.has(i);
+    const fill=isCur?'rgba(250,173,73,.4)':isVis?'rgba(86,207,178,.2)':'var(--sf)';
+    const stroke=isCur?'#faad49':isVis?'var(--gr)':'var(--bd)';
+    svg+=`<circle cx="${p.x}" cy="${p.y}" r="18" fill="${fill}" stroke="${stroke}" stroke-width="${isCur?2.5:1.5}"/>`;
+    svg+=`<text x="${p.x}" y="${p.y+5}" text-anchor="middle" font-size="12" font-weight="bold" fill="${isCur?'#faad49':isVis?'var(--gr)':'var(--tx)'}">${nodes[i]}</text>`;
+  }
+  svg+='</svg>';
+  let out=`<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap"><span class="out-label">走訪結果：</span><div class="out-row">`;
+  if(!output||output.length===0)out+='<span style="color:var(--mu);font-size:.82rem">（尚未走訪）</span>';
+  output&&output.forEach(v=>out+=`<div class="out-cell">${v}</div>`);
+  out+='</div></div>';
+  document.getElementById('viz').innerHTML=svg+out;
+}
+
+document.getElementById('run-btn').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}
+  steps.length=0;cur=-1;
+  const rawArr=document.getElementById('arr-in').value.trim().split(/\s+/).slice(0,15);
+  // Build 1-indexed
+  const nodes=[null,...rawArr.map(s=>s==='null'||s===''?null:s)];
+  const mode=document.querySelector('input[name=mode]:checked').value;
+  const modeLabel={pre:'前序（根左右）',in:'中序（左根右）',post:'後序（左右根）'}[mode];
+  const visited=new Set();const output=[];
+  function snap(d={}){return{nodes,visited:new Set(visited),output:[...output],...d};}
+  steps.push({...snap(),desc:`<b>${modeLabel}</b><br>開始走訪，節點以陣列層序儲存。`});
+  function traverse(i){
+    if(i>=nodes.length||nodes[i]==null)return;
+    if(mode==='pre'){
+      steps.push({...snap({curNode:i}),desc:`<b>前序：訪問節點 ${nodes[i]}（索引=${i}）</b>`});
+      visited.add(i);output.push(nodes[i]);
+      steps.push({...snap({curNode:i}),desc:`<b>輸出 ${nodes[i]}</b>，然後前往左子樹。`});
+      traverse(2*i);
+      traverse(2*i+1);
+    } else if(mode==='in'){
+      traverse(2*i);
+      steps.push({...snap({curNode:i}),desc:`<b>中序：訪問節點 ${nodes[i]}（索引=${i}）</b>`});
+      visited.add(i);output.push(nodes[i]);
+      steps.push({...snap({curNode:i}),desc:`<b>輸出 ${nodes[i]}</b>，然後前往右子樹。`});
+      traverse(2*i+1);
+    } else {
+      traverse(2*i);
+      traverse(2*i+1);
+      steps.push({...snap({curNode:i}),desc:`<b>後序：訪問節點 ${nodes[i]}（索引=${i}）</b>`});
+      visited.add(i);output.push(nodes[i]);
+      steps.push({...snap({curNode:i}),desc:`<b>輸出 ${nodes[i]}</b>（左右子樹均已訪問）`});
+    }
+  }
+  traverse(1);
+  steps.push({...snap(),desc:`<b>走訪完成！</b><br>${modeLabel}<br>結果：${output.join(' → ')}`});
+  goTo(0);
+};
+updateCtrl();
+</script>
+</body></html>

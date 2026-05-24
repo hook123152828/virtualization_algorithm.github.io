@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>線段樹二分查找 - 競程視覺化</title>
+<style>
+:root{--bg:#0f1117;--sf:#1a1d27;--sf2:#22263a;--ac:#7c6af7;--ac2:#56cfb2;--tx:#e8eaf6;--mu:#8b90a8;--bd:#2e3250;--gr:#56cfb2;--rd:#f66868;--yl:#faad49;--bl:#63b3ed;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;font-size:14px;}
+.tb{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;background:var(--sf);border-bottom:1px solid var(--bd);}
+.tb-back{color:var(--mu);text-decoration:none;font-size:.85rem;padding:.3rem .6rem;border-radius:6px;border:1px solid var(--bd);}
+.tb-back:hover{color:var(--tx);border-color:var(--ac);}
+.tb-title{font-size:1.05rem;font-weight:700;background:linear-gradient(90deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.tb-sub{font-size:.78rem;color:var(--mu);}
+.layout{display:flex;flex:1;min-height:0;}
+.left{width:300px;flex-shrink:0;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;}
+.right{flex:1;display:flex;flex-direction:column;}
+.pnl{padding:1rem;border-bottom:1px solid var(--bd);}
+.pnl-title{font-size:.72rem;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.7rem;}
+.field{margin-bottom:.6rem;}
+.field label{display:block;font-size:.78rem;color:var(--mu);margin-bottom:.22rem;}
+input[type=text],input[type=number]{width:100%;background:var(--sf2);border:1px solid var(--bd);color:var(--tx);padding:.45rem .7rem;border-radius:7px;font-size:.88rem;outline:none;}
+input[type=text]:focus,input[type=number]:focus{border-color:var(--ac);}
+.btn{padding:.4rem .85rem;border-radius:7px;border:1px solid var(--bd);background:var(--sf2);color:var(--tx);font-size:.82rem;cursor:pointer;transition:all .15s;}
+.btn:hover:not(:disabled){border-color:var(--ac);background:rgba(124,106,247,.15);}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn-run{background:var(--ac);border-color:var(--ac);font-weight:600;width:100%;margin-top:.4rem;}
+.btn-run:hover:not(:disabled){opacity:.85;}
+.btn-play{background:rgba(86,207,178,.12);border-color:var(--ac2);color:var(--ac2);}
+.step-box{background:var(--sf2);border-radius:8px;padding:.75rem .9rem;font-size:.85rem;line-height:1.65;min-height:80px;}
+.step-cnt{margin-top:.4rem;font-size:.72rem;color:var(--mu);text-align:right;}
+.ctrl{display:flex;align-items:center;gap:.5rem;padding:.65rem 1rem;border-top:1px solid var(--bd);background:var(--sf);flex-wrap:wrap;}
+.sp-lbl{font-size:.75rem;color:var(--mu);}
+input[type=range]{width:70px;accent-color:var(--ac);}
+.viz{flex:1;padding:1.25rem;overflow:auto;}
+svg.st-svg{background:var(--sf2);border-radius:10px;border:1px solid var(--bd);display:block;}
+.result-box{background:rgba(86,207,178,.1);border:1px solid var(--gr);border-radius:8px;padding:.65rem 1rem;font-size:.9rem;margin-top:.8rem;}
+.fail-box{background:rgba(246,104,104,.1);border:1px solid var(--rd);border-radius:8px;padding:.65rem 1rem;font-size:.9rem;margin-top:.8rem;}
+</style>
+</head>
+<body>
+<div class="tb">
+  <a class="tb-back" href="../index.html">← 返回</a>
+  <div><div class="tb-title">線段樹二分查找</div><div class="tb-sub">#31 · 在線段樹上二分：找最左邊前綴和 ≥ k</div></div>
+</div>
+<div class="layout">
+  <div class="left">
+    <div class="pnl">
+      <div class="pnl-title">輸入</div>
+      <div class="field"><label>陣列（空格分隔，最多 8 個）</label>
+        <input type="text" id="arr-in" value="2 1 4 3 5 2 6 1"></div>
+      <div class="field"><label>查詢目標值 k（找最小 r 使 sum[1..r] ≥ k）</label>
+        <input type="number" id="k-in" value="7" min="1"></div>
+      <button class="btn btn-run" id="run-btn">▶ 執行</button>
+    </div>
+    <div class="pnl" style="flex:1">
+      <div class="pnl-title">步驟說明</div>
+      <div class="step-box" id="step-info">請按「執行」開始</div>
+      <div class="step-cnt" id="step-cnt">— / —</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="viz" id="viz"></div>
+    <div class="ctrl">
+      <button class="btn" id="btn-first" disabled>|◀</button>
+      <button class="btn" id="btn-prev" disabled>◀</button>
+      <button class="btn btn-play" id="btn-play" disabled>▶ 自動</button>
+      <button class="btn" id="btn-next" disabled>▶</button>
+      <button class="btn" id="btn-last" disabled>▶|</button>
+      <button class="btn" id="btn-reset">↺ 重置</button>
+      <span class="sp-lbl">速度</span>
+      <input type="range" id="speed" min="1" max="10" value="5">
+    </div>
+  </div>
+</div>
+<script>
+const steps=[];let cur=-1,autoTimer=null;
+function getDelay(){return 1200-document.getElementById('speed').value*110;}
+function updateCtrl(){
+  const n=steps.length;
+  ['btn-first','btn-prev'].forEach(id=>document.getElementById(id).disabled=cur<=0);
+  ['btn-next','btn-last'].forEach(id=>document.getElementById(id).disabled=cur>=n-1);
+  document.getElementById('btn-play').disabled=n===0;
+  document.getElementById('step-cnt').textContent=n>0?`${cur+1} / ${n}`:'— / —';
+}
+function goTo(i){
+  if(i<0||i>=steps.length)return;
+  cur=i;document.getElementById('step-info').innerHTML=steps[cur].desc;
+  render(steps[cur]);updateCtrl();
+}
+document.getElementById('btn-first').onclick=()=>goTo(0);
+document.getElementById('btn-prev').onclick=()=>goTo(cur-1);
+document.getElementById('btn-next').onclick=()=>goTo(cur+1);
+document.getElementById('btn-last').onclick=()=>goTo(steps.length-1);
+document.getElementById('btn-play').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;this.textContent='▶ 自動';}
+  else{if(cur>=steps.length-1)goTo(0);this.textContent='⏸ 暫停';
+    autoTimer=setInterval(()=>{if(cur>=steps.length-1){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}else goTo(cur+1);},getDelay());}
+};
+document.getElementById('btn-reset').onclick=()=>{
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
+  document.getElementById('btn-play').textContent='▶ 自動';
+  steps.length=0;cur=-1;document.getElementById('viz').innerHTML='';
+  document.getElementById('step-info').textContent='請按「執行」開始';updateCtrl();
+};
+
+function buildTree(arr){
+  const n=arr.length;
+  const sum=new Array(4*n).fill(0);
+  function build(node,l,r){
+    if(l===r){sum[node]=arr[l-1];return;}
+    const mid=(l+r)>>1;
+    build(2*node,l,mid);build(2*node+1,mid+1,r);
+    sum[node]=sum[2*node]+sum[2*node+1];
+  }
+  build(1,1,n);
+  return sum;
+}
+
+function treeLayout(n){
+  const pos={};
+  const W=Math.max(600,n*55);
+  function place(node,l,r,depth){
+    const xl=((l-1)/n)*W+20,xr=(r/n)*W-20;
+    pos[node]={x:(xl+xr)/2,y:30+depth*60,l,r};
+    if(l===r)return;
+    const mid=(l+r)>>1;
+    place(2*node,l,mid,depth+1);
+    place(2*node+1,mid+1,r,depth+1);
+  }
+  place(1,1,n,0);
+  return pos;
+}
+
+function render(s){
+  const n=s.n,sum=s.sum;
+  const pos=treeLayout(n);
+  const maxDepth=Math.ceil(Math.log2(n))+1;
+  const W=Math.max(600,n*55);
+  const H=30+maxDepth*60+40;
+  let svg=`<svg class="st-svg" viewBox="0 0 ${W} ${H}" style="width:${W}px;height:${H}px">`;
+  Object.entries(pos).forEach(([id,p])=>{
+    const ni=parseInt(id);
+    if(ni>1&&pos[Math.floor(ni/2)]){
+      const pp=pos[Math.floor(ni/2)];
+      svg+=`<line x1="${pp.x}" y1="${pp.y}" x2="${p.x}" y2="${p.y}" stroke="#2e3250" stroke-width="1.5"/>`;
+    }
+  });
+  Object.entries(pos).forEach(([id,p])=>{
+    const ni=parseInt(id);
+    const isPath=s.pathNodes&&s.pathNodes.includes(ni);
+    const isResult=s.resultNode===ni;
+    const fill=isResult?'rgba(86,207,178,.4)':isPath?'rgba(124,106,247,.3)':'var(--sf2)';
+    const stroke=isResult?'var(--gr)':isPath?'var(--ac)':'var(--bd)';
+    svg+=`<rect x="${p.x-22}" y="${p.y-14}" width="44" height="28" rx="5" fill="${fill}" stroke="${stroke}" stroke-width="${isPath?2:1.5}"/>`;
+    svg+=`<text x="${p.x}" y="${p.y+2}" text-anchor="middle" font-size="11" font-weight="bold" fill="${isResult?'var(--gr)':isPath?'#c0b4ff':'var(--tx)'}">${sum[ni]}</text>`;
+    svg+=`<text x="${p.x}" y="${p.y-18}" text-anchor="middle" font-size="8" fill="var(--mu)">[${p.l},${p.r}]</text>`;
+  });
+  svg+='</svg>';
+  let h=svg;
+  if(s.result!==undefined&&s.result!==-1)h+=`<div class="result-box">最小滿足 prefix_sum ≥ ${s.k} 的位置 r = <b>${s.result}</b>（前綴和=${s.prefixSum}）</div>`;
+  else if(s.result===-1)h+=`<div class="fail-box">不存在滿足條件的位置（總和 ${sum[1]} &lt; ${s.k}）</div>`;
+  document.getElementById('viz').innerHTML=h;
+}
+
+document.getElementById('run-btn').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}
+  steps.length=0;cur=-1;
+  const arr=document.getElementById('arr-in').value.trim().split(/\s+/).map(Number).slice(0,8);
+  const n=arr.length;
+  const k=parseInt(document.getElementById('k-in').value)||1;
+  const sum=buildTree(arr);
+  function snapTree(){return[...sum];}
+  steps.push({desc:`<b>建立線段樹</b><br>陣列長度 n=${n}，根節點總和=${sum[1]}<br>目標：找最小 r 使前綴和 ≥ ${k}`,n,sum:snapTree(),k});
+  if(sum[1]<k){
+    steps.push({desc:`<b>無解</b><br>總和 ${sum[1]} < ${k}，不存在滿足條件的位置。`,n,sum:snapTree(),k,result:-1});
+    goTo(0);return;
+  }
+  // binary search on segment tree
+  const path=[];
+  let node=1,l=1,r=n,remain=k;
+  while(l<r){
+    path.push(node);
+    const mid=(l+r)>>1;
+    steps.push({desc:`<b>節點 [${l},${r}]，sum=${sum[node]}</b><br>左子 [${l},${mid}] sum=${sum[2*node]}，右子 [${mid+1},${r}] sum=${sum[2*node+1]}<br>剩餘目標 remain=${remain}，左子 sum${sum[2*node]>= remain?'≥':'<'}remain，走${sum[2*node]>=remain?'左':'右'}子`,n,sum:snapTree(),k,pathNodes:[...path]});
+    if(sum[2*node]>=remain){node=2*node;r=mid;}
+    else{remain-=sum[2*node];node=2*node+1;l=mid+1;}
+  }
+  path.push(node);
+  // compute prefix sum
+  let ps=0;for(let i=1;i<=l;i++)ps+=arr[i-1];
+  steps.push({desc:`<b>到達葉節點 [${l},${l}]</b><br>答案 r = <b>${l}</b>，前綴和 = ${ps} ≥ ${k}`,n,sum:snapTree(),k,pathNodes:path,resultNode:node,result:l,prefixSum:ps});
+  goTo(0);
+};
+updateCtrl();
+</script>
+</body></html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>自訂隨機哈希 - 競程視覺化</title>
+<style>
+:root{--bg:#0f1117;--sf:#1a1d27;--sf2:#22263a;--ac:#7c6af7;--ac2:#56cfb2;--tx:#e8eaf6;--mu:#8b90a8;--bd:#2e3250;--gr:#56cfb2;--rd:#f66868;--yl:#faad49;--bl:#63b3ed;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;font-size:14px;}
+.tb{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;background:var(--sf);border-bottom:1px solid var(--bd);}
+.tb-back{color:var(--mu);text-decoration:none;font-size:.85rem;padding:.3rem .6rem;border-radius:6px;border:1px solid var(--bd);}
+.tb-back:hover{color:var(--tx);border-color:var(--ac);}
+.tb-title{font-size:1.05rem;font-weight:700;background:linear-gradient(90deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.tb-sub{font-size:.78rem;color:var(--mu);}
+.layout{display:flex;flex:1;min-height:0;}
+.left{width:300px;flex-shrink:0;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;}
+.right{flex:1;display:flex;flex-direction:column;}
+.pnl{padding:1rem;border-bottom:1px solid var(--bd);}
+.pnl-title{font-size:.72rem;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.7rem;}
+.field{margin-bottom:.6rem;}
+.field label{display:block;font-size:.78rem;color:var(--mu);margin-bottom:.22rem;}
+input[type=text],input[type=number]{width:100%;background:var(--sf2);border:1px solid var(--bd);color:var(--tx);padding:.45rem .7rem;border-radius:7px;font-size:.88rem;outline:none;}
+input[type=text]:focus,input[type=number]:focus{border-color:var(--ac);}
+.btn{padding:.4rem .85rem;border-radius:7px;border:1px solid var(--bd);background:var(--sf2);color:var(--tx);font-size:.82rem;cursor:pointer;transition:all .15s;}
+.btn:hover:not(:disabled){border-color:var(--ac);background:rgba(124,106,247,.15);}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn-run{background:var(--ac);border-color:var(--ac);font-weight:600;width:100%;margin-top:.4rem;}
+.btn-run:hover:not(:disabled){opacity:.85;}
+.btn-play{background:rgba(86,207,178,.12);border-color:var(--ac2);color:var(--ac2);}
+.step-box{background:var(--sf2);border-radius:8px;padding:.75rem .9rem;font-size:.85rem;line-height:1.65;min-height:80px;}
+.step-cnt{margin-top:.4rem;font-size:.72rem;color:var(--mu);text-align:right;}
+.ctrl{display:flex;align-items:center;gap:.5rem;padding:.65rem 1rem;border-top:1px solid var(--bd);background:var(--sf);flex-wrap:wrap;}
+.sp-lbl{font-size:.75rem;color:var(--mu);}
+input[type=range]{width:70px;accent-color:var(--ac);}
+.viz{flex:1;padding:1.25rem;overflow:auto;}
+.hash-card{background:var(--sf2);border:1px solid var(--bd);border-radius:10px;padding:1rem;margin-bottom:1rem;}
+.hash-card.active{border-color:var(--ac);background:rgba(124,106,247,.1);}
+.hash-key{font-size:.78rem;color:var(--mu);margin-bottom:.3rem;}
+.hash-steps{font-family:monospace;font-size:.82rem;line-height:1.8;}
+.hash-steps .step-line{color:var(--mu);}
+.hash-steps .step-line.hl{color:var(--yl);}
+.hash-steps .step-line.final{color:var(--gr);}
+.hash-result{font-size:.95rem;font-weight:700;color:var(--gr);margin-top:.5rem;}
+.code-box{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:.75rem;font-family:monospace;font-size:.78rem;color:#cdd6f4;white-space:pre;margin-bottom:1rem;overflow-x:auto;}
+.sec{font-size:.78rem;color:var(--mu);font-weight:600;margin:.5rem 0 .4rem;display:flex;align-items:center;gap:.5rem;}
+.sec::after{content:'';flex:1;height:1px;background:var(--bd);}
+</style>
+</head>
+<body>
+<div class="tb">
+  <a class="tb-back" href="../index.html">← 返回</a>
+  <div><div class="tb-title">自訂隨機哈希（防卡常）</div><div class="tb-sub">#11 · splitmix64 雜湊函數</div></div>
+</div>
+<div class="layout">
+  <div class="left">
+    <div class="pnl">
+      <div class="pnl-title">輸入</div>
+      <div class="field"><label>要哈希的數（空格分隔，最多 8 個）</label>
+        <input type="text" id="keys-in" value="1 42 100 1000 999999 0 7 123456"></div>
+      <div class="field"><label>FIXED_RANDOM 種子</label>
+        <input type="number" id="seed-in" value="1718000000"></div>
+      <button class="btn btn-run" id="run-btn">▶ 執行</button>
+    </div>
+    <div class="pnl" style="flex:1">
+      <div class="pnl-title">步驟說明</div>
+      <div class="step-box" id="step-info">請按「執行」開始</div>
+      <div class="step-cnt" id="step-cnt">— / —</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="viz" id="viz"></div>
+    <div class="ctrl">
+      <button class="btn" id="btn-first" disabled>|◀</button>
+      <button class="btn" id="btn-prev" disabled>◀</button>
+      <button class="btn btn-play" id="btn-play" disabled>▶ 自動</button>
+      <button class="btn" id="btn-next" disabled>▶</button>
+      <button class="btn" id="btn-last" disabled>▶|</button>
+      <button class="btn" id="btn-reset">↺ 重置</button>
+      <span class="sp-lbl">速度</span>
+      <input type="range" id="speed" min="1" max="10" value="5">
+    </div>
+  </div>
+</div>
+<script>
+const steps=[];let cur=-1,autoTimer=null;
+function getDelay(){return 1200-document.getElementById('speed').value*110;}
+function updateCtrl(){
+  const n=steps.length;
+  ['btn-first','btn-prev'].forEach(id=>document.getElementById(id).disabled=cur<=0);
+  ['btn-next','btn-last'].forEach(id=>document.getElementById(id).disabled=cur>=n-1);
+  document.getElementById('btn-play').disabled=n===0;
+  document.getElementById('step-cnt').textContent=n>0?`${cur+1} / ${n}`:'— / —';
+}
+function goTo(i){
+  if(i<0||i>=steps.length)return;
+  cur=i;document.getElementById('step-info').innerHTML=steps[cur].desc;
+  render(steps[cur]);updateCtrl();
+}
+document.getElementById('btn-first').onclick=()=>goTo(0);
+document.getElementById('btn-prev').onclick=()=>goTo(cur-1);
+document.getElementById('btn-next').onclick=()=>goTo(cur+1);
+document.getElementById('btn-last').onclick=()=>goTo(steps.length-1);
+document.getElementById('btn-play').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;this.textContent='▶ 自動';}
+  else{if(cur>=steps.length-1)goTo(0);this.textContent='⏸ 暫停';
+    autoTimer=setInterval(()=>{if(cur>=steps.length-1){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}else goTo(cur+1);},getDelay());}
+};
+document.getElementById('btn-reset').onclick=()=>{
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
+  document.getElementById('btn-play').textContent='▶ 自動';
+  steps.length=0;cur=-1;document.getElementById('viz').innerHTML='';
+  document.getElementById('step-info').textContent='請按「執行」開始';updateCtrl();
+};
+
+// Simulate splitmix64 using BigInt
+function splitmix64(x){
+  let v=BigInt(x)&0xffffffffffffffffn;
+  v=(v+0x9e3779b97f4a7c15n)&0xffffffffffffffffn;
+  v=((v^(v>>30n))*0xbf58476d1ce4e5b9n)&0xffffffffffffffffn;
+  v=((v^(v>>27n))*0x94d049bb133111ebn)&0xffffffffffffffffn;
+  return v^(v>>31n);
+}
+
+function render(s){
+  const code=`struct custom_hash {
+  static uint64_t splitmix64(uint64_t x) {
+    x += 0x9e3779b97f4a7c15;
+    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9;
+    x = (x ^ (x >> 27)) * 0x94d049bb133111eb;
+    return x ^ (x >> 31);
+  }
+  size_t operator()(uint64_t x) const {
+    static const uint64_t FIXED_RANDOM = ...;
+    return splitmix64(x + FIXED_RANDOM);
+  }
+};`;
+  let h=`<div class="code-box">${code}</div>`;
+  s.cards.forEach((c,i)=>{
+    const isActive=i===s.activeCard;
+    h+=`<div class="hash-card ${isActive?'active':''}">
+      <div class="hash-key">key = ${c.key} (+ FIXED_RANDOM = ${c.input})</div>
+      <div class="hash-steps">`;
+    c.stageLines.forEach((line,li)=>{
+      const hlCls=isActive&&li===s.activeLine?'hl':li<(isActive?s.activeLine:c.stageLines.length)?'final':'step-line';
+      h+=`<div class="step-line ${hlCls}">${line}</div>`;
+    });
+    h+=`</div>`;
+    if(!isActive||s.activeLine>=c.stageLines.length){
+      h+=`<div class="hash-result">hash = ${c.result}</div>`;
+    }
+    h+='</div>';
+  });
+  document.getElementById('viz').innerHTML=h;
+}
+
+document.getElementById('run-btn').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}
+  steps.length=0;cur=-1;
+  const keys=document.getElementById('keys-in').value.trim().split(/\s+/).map(Number).filter(x=>!isNaN(x)).slice(0,8);
+  const seed=parseInt(document.getElementById('seed-in').value)||1718000000;
+  const FR=BigInt(seed);
+  const cards=keys.map(k=>{
+    const keyB=BigInt(k);
+    const x0=keyB+FR;
+    let x=x0&0xffffffffffffffffn;
+    const line1=`x = key + FIXED_RANDOM = ${k} + ${seed} = ${x}`;
+    x=(x+0x9e3779b97f4a7c15n)&0xffffffffffffffffn;
+    const line2=`x += 0x9e37... → ${x}`;
+    x=((x^(x>>30n))*0xbf58476d1ce4e5b9n)&0xffffffffffffffffn;
+    const line3=`x = (x^(x>>30))*0xbf58... → ${x}`;
+    x=((x^(x>>27n))*0x94d049bb133111ebn)&0xffffffffffffffffn;
+    const line4=`x = (x^(x>>27))*0x94d0... → ${x}`;
+    x=x^(x>>31n);
+    const line5=`x = x^(x>>31) → ${x}`;
+    return{key:k,input:x0.toString(),stageLines:[line1,line2,line3,line4,line5],result:x.toString()};
+  });
+  steps.push({desc:'<b>splitmix64 哈希函數</b><br>為每個 key 加上 FIXED_RANDOM（時間種子），再進行 3 輪位元混合，使輸出均勻分佈。',cards:cards.map(c=>({...c})),activeCard:0,activeLine:0});
+  cards.forEach((c,ci)=>{
+    c.stageLines.forEach((line,li)=>{
+      steps.push({desc:`<b>哈希 key=${c.key}，步驟 ${li+1}</b><br>${line}`,cards:cards.map(cc=>({...cc})),activeCard:ci,activeLine:li});
+    });
+    steps.push({desc:`<b>key=${c.key} 完成</b><br>最終哈希值 = ${c.result}`,cards:cards.map(cc=>({...cc})),activeCard:ci,activeLine:c.stageLines.length});
+  });
+  steps.push({desc:`<b>全部完成！</b><br>所有 ${keys.length} 個 key 已哈希完畢。<br>不同輸入的 hash 差異很大，有效防止系統性攻擊。`,cards:cards.map(c=>({...c})),activeCard:-1,activeLine:-1});
+  goTo(0);
+};
+updateCtrl();
+</script>
+</body></html>

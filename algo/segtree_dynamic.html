@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>動態線段樹 - 競程視覺化</title>
+<style>
+:root{--bg:#0f1117;--sf:#1a1d27;--sf2:#22263a;--ac:#7c6af7;--ac2:#56cfb2;--tx:#e8eaf6;--mu:#8b90a8;--bd:#2e3250;--gr:#56cfb2;--rd:#f66868;--yl:#faad49;--bl:#63b3ed;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;font-size:14px;}
+.tb{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;background:var(--sf);border-bottom:1px solid var(--bd);}
+.tb-back{color:var(--mu);text-decoration:none;font-size:.85rem;padding:.3rem .6rem;border-radius:6px;border:1px solid var(--bd);}
+.tb-back:hover{color:var(--tx);border-color:var(--ac);}
+.tb-title{font-size:1.05rem;font-weight:700;background:linear-gradient(90deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.tb-sub{font-size:.78rem;color:var(--mu);}
+.layout{display:flex;flex:1;min-height:0;}
+.left{width:300px;flex-shrink:0;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;}
+.right{flex:1;display:flex;flex-direction:column;}
+.pnl{padding:1rem;border-bottom:1px solid var(--bd);}
+.pnl-title{font-size:.72rem;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.7rem;}
+.field{margin-bottom:.6rem;}
+.field label{display:block;font-size:.78rem;color:var(--mu);margin-bottom:.22rem;}
+input[type=text],textarea,input[type=number]{width:100%;background:var(--sf2);border:1px solid var(--bd);color:var(--tx);padding:.45rem .7rem;border-radius:7px;font-size:.88rem;outline:none;}
+input[type=text]:focus,textarea:focus,input[type=number]:focus{border-color:var(--ac);}
+textarea{font-family:monospace;resize:vertical;min-height:80px;}
+.btn{padding:.4rem .85rem;border-radius:7px;border:1px solid var(--bd);background:var(--sf2);color:var(--tx);font-size:.82rem;cursor:pointer;transition:all .15s;}
+.btn:hover:not(:disabled){border-color:var(--ac);background:rgba(124,106,247,.15);}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn-run{background:var(--ac);border-color:var(--ac);font-weight:600;width:100%;margin-top:.4rem;}
+.btn-run:hover:not(:disabled){opacity:.85;}
+.btn-play{background:rgba(86,207,178,.12);border-color:var(--ac2);color:var(--ac2);}
+.step-box{background:var(--sf2);border-radius:8px;padding:.75rem .9rem;font-size:.85rem;line-height:1.65;min-height:80px;}
+.step-cnt{margin-top:.4rem;font-size:.72rem;color:var(--mu);text-align:right;}
+.ctrl{display:flex;align-items:center;gap:.5rem;padding:.65rem 1rem;border-top:1px solid var(--bd);background:var(--sf);flex-wrap:wrap;}
+.sp-lbl{font-size:.75rem;color:var(--mu);}
+input[type=range]{width:70px;accent-color:var(--ac);}
+.viz{flex:1;padding:1.25rem;overflow:auto;}
+svg.st-svg{background:var(--sf2);border-radius:10px;border:1px solid var(--bd);display:block;}
+.result-box{background:rgba(86,207,178,.1);border:1px solid var(--gr);border-radius:8px;padding:.65rem 1rem;font-size:.9rem;margin-top:.8rem;}
+.info-box{background:rgba(124,106,247,.1);border:1px solid var(--ac);border-radius:8px;padding:.65rem 1rem;font-size:.85rem;margin-bottom:.6rem;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="tb">
+  <a class="tb-back" href="../index.html">← 返回</a>
+  <div><div class="tb-title">動態線段樹</div><div class="tb-sub">#33 · 按需開點，適合大值域稀疏操作</div></div>
+</div>
+<div class="layout">
+  <div class="left">
+    <div class="pnl">
+      <div class="pnl-title">輸入</div>
+      <div class="field"><label>值域範圍 [1, MAXN]</label><input type="number" id="maxn-in" value="1000000000" min="1"></div>
+      <div class="field"><label>操作（每行一個）</label>
+        <textarea id="ops-in">update 1000000 5
+update 500000000 3
+update 1 10
+query 1 500000000
+query 999999 1000001
+update 999999999 7
+query 1 1000000000</textarea></div>
+      <div style="font-size:.73rem;color:var(--mu)">update p v（位置 p 加上 v）<br>query l r（區間求和）</div>
+      <button class="btn btn-run" id="run-btn">▶ 執行</button>
+    </div>
+    <div class="pnl" style="flex:1">
+      <div class="pnl-title">步驟說明</div>
+      <div class="step-box" id="step-info">請按「執行」開始</div>
+      <div class="step-cnt" id="step-cnt">— / —</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="viz" id="viz"></div>
+    <div class="ctrl">
+      <button class="btn" id="btn-first" disabled>|◀</button>
+      <button class="btn" id="btn-prev" disabled>◀</button>
+      <button class="btn btn-play" id="btn-play" disabled>▶ 自動</button>
+      <button class="btn" id="btn-next" disabled>▶</button>
+      <button class="btn" id="btn-last" disabled>▶|</button>
+      <button class="btn" id="btn-reset">↺ 重置</button>
+      <span class="sp-lbl">速度</span>
+      <input type="range" id="speed" min="1" max="10" value="5">
+    </div>
+  </div>
+</div>
+<script>
+const steps=[];let cur=-1,autoTimer=null;
+function getDelay(){return 1200-document.getElementById('speed').value*110;}
+function updateCtrl(){
+  const n=steps.length;
+  ['btn-first','btn-prev'].forEach(id=>document.getElementById(id).disabled=cur<=0);
+  ['btn-next','btn-last'].forEach(id=>document.getElementById(id).disabled=cur>=n-1);
+  document.getElementById('btn-play').disabled=n===0;
+  document.getElementById('step-cnt').textContent=n>0?`${cur+1} / ${n}`:'— / —';
+}
+function goTo(i){
+  if(i<0||i>=steps.length)return;
+  cur=i;document.getElementById('step-info').innerHTML=steps[cur].desc;
+  render(steps[cur]);updateCtrl();
+}
+document.getElementById('btn-first').onclick=()=>goTo(0);
+document.getElementById('btn-prev').onclick=()=>goTo(cur-1);
+document.getElementById('btn-next').onclick=()=>goTo(cur+1);
+document.getElementById('btn-last').onclick=()=>goTo(steps.length-1);
+document.getElementById('btn-play').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;this.textContent='▶ 自動';}
+  else{if(cur>=steps.length-1)goTo(0);this.textContent='⏸ 暫停';
+    autoTimer=setInterval(()=>{if(cur>=steps.length-1){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}else goTo(cur+1);},getDelay());}
+};
+document.getElementById('btn-reset').onclick=()=>{
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
+  document.getElementById('btn-play').textContent='▶ 自動';
+  steps.length=0;cur=-1;document.getElementById('viz').innerHTML='';
+  document.getElementById('step-info').textContent='請按「執行」開始';updateCtrl();
+};
+
+// Dynamic segment tree node
+class DynNode{constructor(l,r){this.l=l;this.r=r;this.sum=0;this.left=null;this.right=null;}}
+
+function render(s){
+  const nodes=s.nodes;
+  // Build tree visualization
+  // Layout nodes in tree structure
+  if(!nodes||nodes.length===0){
+    document.getElementById('viz').innerHTML=`<div class="info-box">動態線段樹初始化。值域範圍：[1, ${s.maxN}]<br>僅在有操作時才開新節點，節省空間。<br>目前節點數：0</div>`;return;
+  }
+  const W=Math.min(800,400+nodes.length*40);
+  const H=Math.min(500,80+nodes.length*35);
+  // Assign positions by tree structure (root is first)
+  const posMap=new Map();
+  function assignPos(id,depth,leftBound,rightBound){
+    if(id===null||id===undefined)return;
+    const node=nodes[id];
+    posMap.set(id,{x:(leftBound+rightBound)/2,y:30+depth*55,l:node.l,r:node.r,sum:node.sum});
+    if(node.leftId!==null)assignPos(node.leftId,depth+1,leftBound,(leftBound+rightBound)/2);
+    if(node.rightId!==null)assignPos(node.rightId,depth+1,(leftBound+rightBound)/2,rightBound);
+  }
+  assignPos(0,0,30,W-30);
+  let svg=`<svg class="st-svg" viewBox="0 0 ${W} ${H}" style="width:${W}px;height:${H}px">`;
+  // Draw edges
+  nodes.forEach((node,id)=>{
+    if(node===null)return;
+    const p=posMap.get(id);if(!p)return;
+    if(node.leftId!==null&&posMap.get(node.leftId)){const pp=posMap.get(node.leftId);svg+=`<line x1="${p.x}" y1="${p.y}" x2="${pp.x}" y2="${pp.y}" stroke="#2e3250" stroke-width="1.5"/>`;}
+    if(node.rightId!==null&&posMap.get(node.rightId)){const pp=posMap.get(node.rightId);svg+=`<line x1="${p.x}" y1="${p.y}" x2="${pp.x}" y2="${pp.y}" stroke="#2e3250" stroke-width="1.5"/>`;}
+  });
+  // Draw nodes
+  nodes.forEach((node,id)=>{
+    if(node===null)return;
+    const p=posMap.get(id);if(!p)return;
+    const isNew=s.newNodes&&s.newNodes.includes(id);
+    const isPath=s.pathNodes&&s.pathNodes.includes(id);
+    const fill=isNew?'rgba(250,173,73,.35)':isPath?'rgba(124,106,247,.3)':'var(--sf2)';
+    const stroke=isNew?'#faad49':isPath?'var(--ac)':'var(--bd)';
+    svg+=`<rect x="${p.x-26}" y="${p.y-14}" width="52" height="28" rx="5" fill="${fill}" stroke="${stroke}" stroke-width="${isPath?2:1.5}"/>`;
+    svg+=`<text x="${p.x}" y="${p.y+2}" text-anchor="middle" font-size="10" font-weight="bold" fill="${isNew?'#faad49':isPath?'#c0b4ff':'var(--tx)'}">${p.sum}</text>`;
+    // show abbreviated range
+    const rl=p.l.toLocaleString(),rr=p.r.toLocaleString();
+    svg+=`<title>[${rl},${rr}] sum=${p.sum}</title>`;
+  });
+  svg+='</svg>';
+  let h=`<div class="info-box">已開節點數：<b style="color:var(--ac)">${nodes.length}</b>（靜態線段樹需要 ${s.maxN>1e6?'數億':'數萬'} 個節點）</div>`;
+  h+=svg;
+  if(s.result!==undefined)h+=`<div class="result-box">query(${s.ql.toLocaleString()},${s.qr.toLocaleString()}) = <b>${s.result}</b></div>`;
+  document.getElementById('viz').innerHTML=h;
+}
+
+document.getElementById('run-btn').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}
+  steps.length=0;cur=-1;
+  const maxN=parseInt(document.getElementById('maxn-in').value)||1000000000;
+  // Simulate dynamic segment tree
+  const nodes=[]; // flat array of node objects
+  let root=null;
+  function newNode(l,r){
+    nodes.push({l,r,sum:0,leftId:null,rightId:null});
+    return nodes.length-1;
+  }
+  function update(nodeId,l,r,pos,val){
+    if(l===r){nodes[nodeId].sum+=val;return;}
+    const mid=(l+r)>>1;
+    const prevCount=nodes.length;
+    if(pos<=mid){
+      if(nodes[nodeId].leftId===null)nodes[nodeId].leftId=newNode(l,mid);
+      update(nodes[nodeId].leftId,l,mid,pos,val);
+    } else {
+      if(nodes[nodeId].rightId===null)nodes[nodeId].rightId=newNode(mid+1,r);
+      update(nodes[nodeId].rightId,mid+1,r,pos,val);
+    }
+    nodes[nodeId].sum=( nodes[nodeId].leftId!==null?nodes[nodes[nodeId].leftId].sum:0)+( nodes[nodeId].rightId!==null?nodes[nodes[nodeId].rightId].sum:0);
+    return nodes.length-prevCount;
+  }
+  function query(nodeId,l,r,ql,qr){
+    if(nodeId===null)return 0;
+    if(ql<=l&&r<=qr)return nodes[nodeId].sum;
+    const mid=(l+r)>>1;
+    let res=0;
+    if(ql<=mid)res+=query(nodes[nodeId].leftId,l,mid,ql,qr);
+    if(qr>mid)res+=query(nodes[nodeId].rightId,mid+1,r,ql,qr);
+    return res;
+  }
+  function snapNodes(){return nodes.map(n=>n?{...n}:null);}
+  steps.push({maxN,nodes:snapNodes(),desc:`<b>初始化動態線段樹</b><br>值域 [1, ${maxN.toLocaleString()}]，初始無任何節點。<br>按需開節點，每次 update 最多新增 O(log N) 個。`});
+  root=newNode(1,maxN);
+  steps.push({maxN,nodes:snapNodes(),desc:`<b>建立根節點</b><br>[1, ${maxN.toLocaleString()}] 根節點已創建。目前節點數：1`});
+  const ops=document.getElementById('ops-in').value.trim().split('\n').filter(l=>l.trim());
+  ops.forEach(op=>{
+    const parts=op.trim().split(/\s+/);
+    if(parts[0]==='update'&&parts.length>=3){
+      const pos=parseInt(parts[1]),val=parseInt(parts[2]);
+      if(isNaN(pos)||isNaN(val)||pos<1||pos>maxN)return;
+      const before=nodes.length;
+      update(root,1,maxN,pos,val);
+      const added=nodes.length-before;
+      steps.push({maxN,nodes:snapNodes(),newNodes:Array.from({length:added},(_,i)=>before+i),desc:`<b>update(${pos.toLocaleString()}, +${val})</b><br>沿路徑更新節點，新開了 ${added} 個節點。<br>目前節點數：<b>${nodes.length}</b>`});
+    } else if(parts[0]==='query'&&parts.length>=3){
+      const ql=parseInt(parts[1]),qr=parseInt(parts[2]);
+      if(isNaN(ql)||isNaN(qr)||ql<1||qr>maxN||ql>qr)return;
+      const result=query(root,1,maxN,ql,qr);
+      steps.push({maxN,nodes:snapNodes(),desc:`<b>query(${ql.toLocaleString()}, ${qr.toLocaleString()})</b><br>區間求和，結果 = <b>${result}</b>`,ql,qr,result});
+    }
+  });
+  goTo(0);
+};
+updateCtrl();
+</script>
+</body></html>

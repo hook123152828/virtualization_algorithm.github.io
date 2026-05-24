@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>線性篩+質因數分解 - 競程視覺化</title>
+<style>
+:root{--bg:#0f1117;--sf:#1a1d27;--sf2:#22263a;--ac:#7c6af7;--ac2:#56cfb2;--tx:#e8eaf6;--mu:#8b90a8;--bd:#2e3250;--gr:#56cfb2;--rd:#f66868;--yl:#faad49;--bl:#63b3ed;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;font-size:14px;}
+.tb{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;background:var(--sf);border-bottom:1px solid var(--bd);}
+.tb-back{color:var(--mu);text-decoration:none;font-size:.85rem;padding:.3rem .6rem;border-radius:6px;border:1px solid var(--bd);}
+.tb-back:hover{color:var(--tx);border-color:var(--ac);}
+.tb-title{font-size:1.05rem;font-weight:700;background:linear-gradient(90deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.tb-sub{font-size:.78rem;color:var(--mu);}
+.layout{display:flex;flex:1;min-height:0;}
+.left{width:300px;flex-shrink:0;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;}
+.right{flex:1;display:flex;flex-direction:column;}
+.pnl{padding:1rem;border-bottom:1px solid var(--bd);}
+.pnl-title{font-size:.72rem;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.7rem;}
+.field{margin-bottom:.6rem;}
+.field label{display:block;font-size:.78rem;color:var(--mu);margin-bottom:.22rem;}
+input[type=number]{width:100%;background:var(--sf2);border:1px solid var(--bd);color:var(--tx);padding:.45rem .7rem;border-radius:7px;font-size:.88rem;outline:none;}
+input[type=number]:focus{border-color:var(--ac);}
+.btn{padding:.4rem .85rem;border-radius:7px;border:1px solid var(--bd);background:var(--sf2);color:var(--tx);font-size:.82rem;cursor:pointer;transition:all .15s;}
+.btn:hover:not(:disabled){border-color:var(--ac);background:rgba(124,106,247,.15);}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn-run{background:var(--ac);border-color:var(--ac);font-weight:600;width:100%;margin-top:.4rem;}
+.btn-run:hover:not(:disabled){opacity:.85;}
+.btn-play{background:rgba(86,207,178,.12);border-color:var(--ac2);color:var(--ac2);}
+.step-box{background:var(--sf2);border-radius:8px;padding:.75rem .9rem;font-size:.85rem;line-height:1.65;min-height:80px;}
+.step-cnt{margin-top:.4rem;font-size:.72rem;color:var(--mu);text-align:right;}
+.ctrl{display:flex;align-items:center;gap:.5rem;padding:.65rem 1rem;border-top:1px solid var(--bd);background:var(--sf);flex-wrap:wrap;}
+.sp-lbl{font-size:.75rem;color:var(--mu);}
+input[type=range]{width:70px;accent-color:var(--ac);}
+.viz{flex:1;padding:1.25rem;overflow:auto;}
+.grid{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:1rem;}
+.num-cell{width:44px;height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--sf2);border:2px solid var(--bd);border-radius:6px;font-family:monospace;font-weight:700;font-size:.78rem;transition:all .2s;position:relative;}
+.num-cell .val{font-size:.82rem;}
+.num-cell .lpf{font-size:.58rem;color:var(--mu);}
+.num-cell.prime{background:rgba(86,207,178,.2);border-color:var(--gr);color:var(--gr);}
+.num-cell.prime .lpf{color:var(--gr);}
+.num-cell.composite{background:var(--sf2);border-color:var(--bd);}
+.num-cell.current{background:rgba(250,173,73,.3);border-color:var(--yl);color:var(--yl);}
+.num-cell.current .lpf{color:var(--yl);}
+.fact-steps{margin-top:1rem;}
+.fact-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;font-family:monospace;font-size:.88rem;}
+.fact-box{background:var(--sf2);border:1px solid var(--bd);border-radius:6px;padding:.3rem .6rem;}
+.fact-box.active{background:rgba(124,106,247,.3);border-color:var(--ac);color:#c0b4ff;}
+.fact-box.done{background:rgba(86,207,178,.2);border-color:var(--gr);color:var(--gr);}
+.result-box{background:rgba(86,207,178,.1);border:1px solid var(--gr);border-radius:8px;padding:.75rem 1rem;font-size:.9rem;margin-top:1rem;}
+.sec{font-size:.78rem;color:var(--mu);font-weight:600;margin:.5rem 0 .4rem;display:flex;align-items:center;gap:.5rem;}
+.sec::after{content:'';flex:1;height:1px;background:var(--bd);}
+</style>
+</head>
+<body>
+<div class="tb">
+  <a class="tb-back" href="../index.html">← 返回</a>
+  <div><div class="tb-title">線性篩 + 質因數分解</div><div class="tb-sub">#05 · 用 LPF 陣列做 O(log x) 質因數分解</div></div>
+</div>
+<div class="layout">
+  <div class="left">
+    <div class="pnl">
+      <div class="pnl-title">輸入</div>
+      <div class="field"><label>篩到 n（最大 120）</label>
+        <input type="number" id="n-input" value="60" min="5" max="120"></div>
+      <div class="field"><label>要分解的數 x（≤ n）</label>
+        <input type="number" id="x-input" value="60"></div>
+      <button class="btn btn-run" id="run-btn">▶ 執行</button>
+    </div>
+    <div class="pnl" style="flex:1">
+      <div class="pnl-title">步驟說明</div>
+      <div class="step-box" id="step-info">請按「執行」開始</div>
+      <div class="step-cnt" id="step-cnt">— / —</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="viz" id="viz"></div>
+    <div class="ctrl">
+      <button class="btn" id="btn-first" disabled>|◀</button>
+      <button class="btn" id="btn-prev" disabled>◀</button>
+      <button class="btn btn-play" id="btn-play" disabled>▶ 自動</button>
+      <button class="btn" id="btn-next" disabled>▶</button>
+      <button class="btn" id="btn-last" disabled>▶|</button>
+      <button class="btn" id="btn-reset">↺ 重置</button>
+      <span class="sp-lbl">速度</span>
+      <input type="range" id="speed" min="1" max="10" value="6">
+    </div>
+  </div>
+</div>
+<script>
+const steps=[];let cur=-1,autoTimer=null;
+function getDelay(){return 1200-document.getElementById('speed').value*110;}
+function updateCtrl(){
+  const n=steps.length;
+  ['btn-first','btn-prev'].forEach(id=>document.getElementById(id).disabled=cur<=0);
+  ['btn-next','btn-last'].forEach(id=>document.getElementById(id).disabled=cur>=n-1);
+  document.getElementById('btn-play').disabled=n===0;
+  document.getElementById('step-cnt').textContent=n>0?`${cur+1} / ${n}`:'— / —';
+}
+function goTo(i){
+  if(i<0||i>=steps.length)return;
+  cur=i;document.getElementById('step-info').innerHTML=steps[cur].desc;
+  render(steps[cur]);updateCtrl();
+}
+document.getElementById('btn-first').onclick=()=>goTo(0);
+document.getElementById('btn-prev').onclick=()=>goTo(cur-1);
+document.getElementById('btn-next').onclick=()=>goTo(cur+1);
+document.getElementById('btn-last').onclick=()=>goTo(steps.length-1);
+document.getElementById('btn-play').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;this.textContent='▶ 自動';}
+  else{if(cur>=steps.length-1)goTo(0);this.textContent='⏸ 暫停';
+    autoTimer=setInterval(()=>{if(cur>=steps.length-1){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}else goTo(cur+1);},getDelay());}
+};
+document.getElementById('btn-reset').onclick=()=>{
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
+  document.getElementById('btn-play').textContent='▶ 自動';
+  steps.length=0;cur=-1;document.getElementById('viz').innerHTML='';
+  document.getElementById('step-info').textContent='請按「執行」開始';updateCtrl();
+};
+
+function render(s){
+  let h=`<div class="sec">LPF[] 最小質因數陣列（2 到 ${s.n}）</div><div class="grid">`;
+  for(let j=2;j<=s.n;j++){
+    const lpf=s.lpf[j]||'?';
+    const isPrime=s.lpf[j]===j;
+    let cls=isPrime?'prime':'composite';
+    if(j===s.curSieve)cls='current';
+    h+=`<div class="num-cell ${cls}"><div class="val">${j}</div><div class="lpf">lpf:${lpf}</div></div>`;
+  }
+  h+='</div>';
+  if(s.factSteps){
+    h+=`<div class="sec">分解 ${s.x} = ?</div><div class="fact-steps">`;
+    s.factSteps.forEach((fs,i)=>{
+      const cls=i===s.factActive?'active':i<s.factActive?'done':'';
+      h+=`<div class="fact-row"><div class="fact-box ${cls}">${fs.x}</div><span style="color:var(--mu)">÷</span><div class="fact-box ${cls}">${fs.factor}</div><span style="color:var(--mu)">=</span><div class="fact-box ${cls}">${fs.x/fs.factor}</div><span style="color:var(--mu);font-size:.75rem">（出現 ${fs.cnt} 次）</span></div>`;
+    });
+    h+='</div>';
+  }
+  if(s.factResult){
+    h+=`<div class="result-box"><b>${s.x}</b> = ${s.factResult}</div>`;
+  }
+  document.getElementById('viz').innerHTML=h;
+}
+
+document.getElementById('run-btn').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}
+  steps.length=0;cur=-1;
+  const n=Math.min(120,Math.max(5,parseInt(document.getElementById('n-input').value)||60));
+  const x=Math.min(n,Math.max(2,parseInt(document.getElementById('x-input').value)||60));
+  const lpf=new Array(n+1).fill(0);
+  const primes=[];
+  steps.push({desc:`<b>開始線性篩</b><br>建立 LPF[] (Least Prime Factor) 陣列，每個合數記錄其最小質因數。`,n,lpf:{},curSieve:null,x});
+  for(let i=2;i<=n;i++){
+    if(lpf[i]===0){lpf[i]=i;primes.push(i);}
+    for(const p of primes){
+      if(i*p>n)break;
+      if(lpf[i*p]===0)lpf[i*p]=p;
+      if(i%p===0)break;
+    }
+    const snap={};for(let k=2;k<=i;k++)snap[k]=lpf[k];
+    steps.push({desc:`<b>i = ${i}</b><br>lpf[${i}] = ${lpf[i]}（${lpf[i]===i?'質數':'合數'}）<br>標記 ${i} 的倍數`,n,lpf:snap,curSieve:i,x});
+  }
+  // factorization steps
+  const fullLpf={};for(let k=2;k<=n;k++)fullLpf[k]=lpf[k];
+  steps.push({desc:`<b>篩法完成！</b><br>現在開始分解 x = ${x}，利用 LPF[] 在 O(log x) 內完成。`,n,lpf:fullLpf,x});
+  const factSteps=[];
+  let xv=x;
+  while(xv!==1){
+    const factor=fullLpf[xv]||xv;
+    let cnt=0;
+    const startX=xv;
+    while(xv%factor===0){cnt++;xv=Math.floor(xv/factor);}
+    factSteps.push({x:startX,factor,cnt});
+  }
+  factSteps.forEach((fs,i)=>{
+    steps.push({desc:`<b>分解步驟 ${i+1}</b><br>當前 x = ${fs.x}<br>lpf[${fs.x}] = ${fs.factor}，連續除以 ${fs.factor} 共 <b>${fs.cnt}</b> 次`,n,lpf:fullLpf,x,factSteps,factActive:i});
+  });
+  const factResult=factSteps.map(fs=>`${fs.factor}^${fs.cnt}`).join(' × ');
+  steps.push({desc:`<b>完成！</b><br>${x} = ${factResult}`,n,lpf:fullLpf,x,factSteps,factActive:factSteps.length,factResult});
+  goTo(0);
+};
+updateCtrl();
+</script>
+</body></html>

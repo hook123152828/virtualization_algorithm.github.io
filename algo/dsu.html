@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>並查集 DSU - 競程視覺化</title>
+<style>
+:root{--bg:#0f1117;--sf:#1a1d27;--sf2:#22263a;--ac:#7c6af7;--ac2:#56cfb2;--tx:#e8eaf6;--mu:#8b90a8;--bd:#2e3250;--gr:#56cfb2;--rd:#f66868;--yl:#faad49;--bl:#63b3ed;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;font-size:14px;}
+.tb{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;background:var(--sf);border-bottom:1px solid var(--bd);}
+.tb-back{color:var(--mu);text-decoration:none;font-size:.85rem;padding:.3rem .6rem;border-radius:6px;border:1px solid var(--bd);}
+.tb-back:hover{color:var(--tx);border-color:var(--ac);}
+.tb-title{font-size:1.05rem;font-weight:700;background:linear-gradient(90deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.tb-sub{font-size:.78rem;color:var(--mu);}
+.layout{display:flex;flex:1;min-height:0;}
+.left{width:300px;flex-shrink:0;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;}
+.right{flex:1;display:flex;flex-direction:column;}
+.pnl{padding:1rem;border-bottom:1px solid var(--bd);}
+.pnl-title{font-size:.72rem;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.7rem;}
+.field{margin-bottom:.6rem;}
+.field label{display:block;font-size:.78rem;color:var(--mu);margin-bottom:.22rem;}
+input[type=text],input[type=number],textarea{width:100%;background:var(--sf2);border:1px solid var(--bd);color:var(--tx);padding:.45rem .7rem;border-radius:7px;font-size:.88rem;outline:none;}
+input[type=text]:focus,input[type=number]:focus,textarea:focus{border-color:var(--ac);}
+textarea{font-family:monospace;resize:vertical;min-height:70px;}
+.btn{padding:.4rem .85rem;border-radius:7px;border:1px solid var(--bd);background:var(--sf2);color:var(--tx);font-size:.82rem;cursor:pointer;transition:all .15s;}
+.btn:hover:not(:disabled){border-color:var(--ac);background:rgba(124,106,247,.15);}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn-run{background:var(--ac);border-color:var(--ac);font-weight:600;width:100%;margin-top:.4rem;}
+.btn-run:hover:not(:disabled){opacity:.85;}
+.btn-play{background:rgba(86,207,178,.12);border-color:var(--ac2);color:var(--ac2);}
+.step-box{background:var(--sf2);border-radius:8px;padding:.75rem .9rem;font-size:.85rem;line-height:1.65;min-height:80px;}
+.step-cnt{margin-top:.4rem;font-size:.72rem;color:var(--mu);text-align:right;}
+.ctrl{display:flex;align-items:center;gap:.5rem;padding:.65rem 1rem;border-top:1px solid var(--bd);background:var(--sf);flex-wrap:wrap;}
+.sp-lbl{font-size:.75rem;color:var(--mu);}
+input[type=range]{width:70px;accent-color:var(--ac);}
+.viz{flex:1;padding:1.25rem;overflow:auto;}
+svg.dsu-svg{width:100%;background:var(--sf2);border-radius:10px;border:1px solid var(--bd);}
+.arr-row{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:1rem;}
+.c{display:flex;flex-direction:column;align-items:center;gap:.15rem;}
+.cb{min-width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:var(--sf2);border:2px solid var(--bd);border-radius:6px;font-family:monospace;font-weight:700;font-size:.9rem;transition:all .2s;}
+.ci{font-size:.6rem;color:var(--mu);}
+.cb.hl{background:rgba(124,106,247,.3);border-color:var(--ac);color:#c0b4ff;}
+.cb.root{background:rgba(86,207,178,.2);border-color:var(--gr);color:var(--gr);}
+.result-box{background:rgba(86,207,178,.1);border:1px solid var(--gr);border-radius:8px;padding:.65rem 1rem;font-size:.9rem;margin-top:.5rem;}
+.sec{font-size:.78rem;color:var(--mu);font-weight:600;margin:.5rem 0 .4rem;display:flex;align-items:center;gap:.5rem;}
+.sec::after{content:'';flex:1;height:1px;background:var(--bd);}
+</style>
+</head>
+<body>
+<div class="tb">
+  <a class="tb-back" href="../index.html">← 返回</a>
+  <div><div class="tb-title">並查集 DSU</div><div class="tb-sub">#21 · 路徑壓縮 + 按秩合併</div></div>
+</div>
+<div class="layout">
+  <div class="left">
+    <div class="pnl">
+      <div class="pnl-title">輸入</div>
+      <div class="field"><label>節點數 n</label><input type="number" id="n-in" value="8" min="2" max="12"></div>
+      <div class="field"><label>操作（每行一個）</label>
+        <textarea id="ops-in">union 1 2
+union 3 4
+union 5 6
+union 1 3
+union 7 8
+find 5
+union 5 1
+find 4</textarea></div>
+      <div style="font-size:.73rem;color:var(--mu)">union a b（合併）<br>find x（查找根，顯示路徑壓縮）</div>
+      <button class="btn btn-run" id="run-btn">▶ 執行</button>
+    </div>
+    <div class="pnl" style="flex:1">
+      <div class="pnl-title">步驟說明</div>
+      <div class="step-box" id="step-info">請按「執行」開始</div>
+      <div class="step-cnt" id="step-cnt">— / —</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="viz" id="viz"></div>
+    <div class="ctrl">
+      <button class="btn" id="btn-first" disabled>|◀</button>
+      <button class="btn" id="btn-prev" disabled>◀</button>
+      <button class="btn btn-play" id="btn-play" disabled>▶ 自動</button>
+      <button class="btn" id="btn-next" disabled>▶</button>
+      <button class="btn" id="btn-last" disabled>▶|</button>
+      <button class="btn" id="btn-reset">↺ 重置</button>
+      <span class="sp-lbl">速度</span>
+      <input type="range" id="speed" min="1" max="10" value="5">
+    </div>
+  </div>
+</div>
+<script>
+const steps=[];let cur=-1,autoTimer=null;
+function getDelay(){return 1200-document.getElementById('speed').value*110;}
+function updateCtrl(){
+  const n=steps.length;
+  ['btn-first','btn-prev'].forEach(id=>document.getElementById(id).disabled=cur<=0);
+  ['btn-next','btn-last'].forEach(id=>document.getElementById(id).disabled=cur>=n-1);
+  document.getElementById('btn-play').disabled=n===0;
+  document.getElementById('step-cnt').textContent=n>0?`${cur+1} / ${n}`:'— / —';
+}
+function goTo(i){
+  if(i<0||i>=steps.length)return;
+  cur=i;document.getElementById('step-info').innerHTML=steps[cur].desc;
+  render(steps[cur]);updateCtrl();
+}
+document.getElementById('btn-first').onclick=()=>goTo(0);
+document.getElementById('btn-prev').onclick=()=>goTo(cur-1);
+document.getElementById('btn-next').onclick=()=>goTo(cur+1);
+document.getElementById('btn-last').onclick=()=>goTo(steps.length-1);
+document.getElementById('btn-play').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;this.textContent='▶ 自動';}
+  else{if(cur>=steps.length-1)goTo(0);this.textContent='⏸ 暫停';
+    autoTimer=setInterval(()=>{if(cur>=steps.length-1){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}else goTo(cur+1);},getDelay());}
+};
+document.getElementById('btn-reset').onclick=()=>{
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
+  document.getElementById('btn-play').textContent='▶ 自動';
+  steps.length=0;cur=-1;document.getElementById('viz').innerHTML='';
+  document.getElementById('step-info').textContent='請按「執行」開始';updateCtrl();
+};
+
+const COLORS=['#7c6af7','#56cfb2','#f66868','#faad49','#63b3ed','#9ae6b4','#f6ad55','#fc8181','#68d391','#76e4f7','#b794f4','#fbd38d'];
+
+function layout(parent,n){
+  // Find roots and components
+  const roots=new Set();
+  for(let i=1;i<=n;i++){let x=i;while(parent[x]!==x)x=parent[x];roots.add(x);}
+  // Group by component
+  const comp=new Map();
+  for(let i=1;i<=n;i++){let x=i;while(parent[x]!==x)x=parent[x];if(!comp.has(x))comp.set(x,[]);comp.get(x).push(i);}
+  return comp;
+}
+
+function render(s){
+  const n=s.n,parent=s.parent;
+  const svgW=500,svgH=Math.max(220,s.n*30);
+  // compute node positions
+  const comp=layout(parent,n);
+  const comps=[...comp.entries()];
+  const nodePos={};
+  const rootNodeMap=new Map();
+  // for each component, arrange in tree layout
+  // simplified: place roots in a row, children below
+  let compX=40;
+  comps.forEach(([root,members],ci)=>{
+    // BFS tree layout
+    const children=new Map();
+    for(let i=1;i<=n;i++)children.set(i,[]);
+    for(let i=1;i<=n;i++){if(parent[i]!==i)children.get(parent[i]).push(i);}
+    // Assign positions via BFS
+    const visited=new Set();
+    const queue=[{node:root,depth:0,sibIdx:0,sibCount:1}];
+    const depthCount={};
+    // Count nodes per depth
+    function countDepth(node,d){depthCount[d]=(depthCount[d]||0)+1;children.get(node).forEach(c=>{if(!visited.has(c))countDepth(c,d+1);});}
+    countDepth(root,0);
+    const depthX={};
+    visited.clear();
+    const bfsQ=[{node:root,depth:0}];visited.add(root);
+    while(bfsQ.length){
+      const{node,depth}=bfsQ.shift();
+      depthX[depth]=depthX[depth]||0;
+      nodePos[node]={x:compX+depthX[depth]*44,y:40+depth*70,color:COLORS[ci%COLORS.length]};
+      depthX[depth]++;
+      children.get(node).forEach(c=>{if(!visited.has(c)){visited.add(c);bfsQ.push({node:c,depth:depth+1});}});
+    }
+    const maxX=Math.max(...members.map(m=>nodePos[m]?nodePos[m].x:compX));
+    compX=maxX+80;
+  });
+  const w=Math.max(svgW,compX+60);
+  let svg=`<svg class="dsu-svg" viewBox="0 0 ${w} 300" style="height:300px">`;
+  // Draw edges
+  for(let i=1;i<=n;i++){
+    if(parent[i]!==i&&nodePos[i]&&nodePos[parent[i]]){
+      const from=nodePos[i],to=nodePos[parent[i]];
+      const hl=s.hlEdge&&(s.hlEdge.includes(i)||s.hlEdge.includes(parent[i]));
+      svg+=`<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="${hl?'#faad49':'#2e3250'}" stroke-width="${hl?2:1.5}" marker-end="url(#arr)"/>`;
+    }
+  }
+  svg+=`<defs><marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#2e3250"/></marker></defs>`;
+  // Draw nodes
+  for(let i=1;i<=n;i++){
+    if(!nodePos[i])continue;
+    const{x,y,color}=nodePos[i];
+    const isRoot=parent[i]===i;
+    const isHl=s.hlNodes&&s.hlNodes.includes(i);
+    const fill=isHl?'rgba(250,173,73,.4)':isRoot?`${color}33`:`${color}1a`;
+    const stroke=isHl?'#faad49':color;
+    svg+=`<circle cx="${x}" cy="${y}" r="18" fill="${fill}" stroke="${stroke}" stroke-width="${isRoot?2.5:2}"/>`;
+    svg+=`<text x="${x}" y="${y+5}" text-anchor="middle" font-size="13" font-weight="bold" fill="${isHl?'#faad49':color}">${i}</text>`;
+    if(isRoot)svg+=`<text x="${x}" y="${y+32}" text-anchor="middle" font-size="9" fill="${color}">root</text>`;
+  }
+  svg+='</svg>';
+  // parent array
+  let h=svg;
+  h+=`<div class="sec">parent[] 陣列</div><div class="arr-row">`;
+  for(let i=1;i<=n;i++){
+    const isRoot=parent[i]===i;
+    const cls=isRoot?'root':s.hlNodes&&s.hlNodes.includes(i)?'hl':'';
+    h+=`<div class="c"><div class="cb ${cls}">${parent[i]}</div><div class="ci">[${i}]</div></div>`;
+  }
+  h+='</div>';
+  if(s.result!==undefined)h+=`<div class="result-box">find(${s.findNode}) = <b>${s.result}</b>（根節點）</div>`;
+  document.getElementById('viz').innerHTML=h;
+}
+
+document.getElementById('run-btn').onclick=function(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-play').textContent='▶ 自動';}
+  steps.length=0;cur=-1;
+  const n=Math.min(12,Math.max(2,parseInt(document.getElementById('n-in').value)||8));
+  const parent=Array.from({length:n+1},(_,i)=>i);
+  function snap(){return[...parent];}
+  function find(x){
+    const path=[x];while(parent[x]!==x){x=parent[x];path.push(x);}
+    // path compression
+    const root=x;path.forEach(p=>{parent[p]=root;});
+    return{root,path};
+  }
+  steps.push({desc:`<b>初始化</b><br>共 ${n} 個節點，每個節點都是自己的根。`,parent:snap(),n,hlNodes:[]});
+  const ops=document.getElementById('ops-in').value.trim().split('\n').filter(l=>l.trim());
+  ops.forEach(op=>{
+    const parts=op.trim().split(/\s+/);
+    if(parts[0]==='union'&&parts.length>=3){
+      const a=parseInt(parts[1]),b=parseInt(parts[2]);
+      if(isNaN(a)||isNaN(b)||a<1||a>n||b<1||b>n)return;
+      steps.push({desc:`<b>union(${a},${b})</b><br>先找兩個節點的根…`,parent:snap(),n,hlNodes:[a,b]});
+      const ra=find(a).root,rb=find(b).root;
+      if(ra!==rb){
+        parent[rb]=ra;
+        steps.push({desc:`<b>union(${a},${b}) 完成</b><br>fa=${ra}, fb=${rb}（不同集合）<br>將 ${rb} 的父節點設為 ${ra}`,parent:snap(),n,hlNodes:[ra,rb],hlEdge:[rb]});
+      } else {
+        steps.push({desc:`<b>union(${a},${b}) 已同集合</b><br>${a} 和 ${b} 的根都是 ${ra}，跳過。`,parent:snap(),n,hlNodes:[ra]});
+      }
+    } else if(parts[0]==='find'&&parts.length>=2){
+      const x=parseInt(parts[1]);
+      if(isNaN(x)||x<1||x>n)return;
+      const beforePath=[];let p=x;while(parent[p]!==p){beforePath.push(p);p=parent[p];}beforePath.push(p);
+      const root=p;
+      steps.push({desc:`<b>find(${x})</b><br>沿路徑向上找根：[${beforePath.join('→')}]<br>路徑壓縮：所有節點直接連到根 ${root}`,parent:snap(),n,hlNodes:beforePath});
+      find(x);
+      steps.push({desc:`<b>find(${x}) 完成</b><br>根為 ${root}，路徑壓縮後節點直接連根。`,parent:snap(),n,hlNodes:[x,root],result:root,findNode:x});
+    }
+  });
+  goTo(0);
+};
+updateCtrl();
+</script>
+</body></html>
